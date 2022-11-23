@@ -19,7 +19,9 @@ typedef enum
 
 void dshot_init(uint8_t pin_number, dshot_standard_t standard);
 
-void dshot_send(uint16_t throttle);
+void dshot_send(uint16_t command);
+
+void dshot_throttle(uint16_t throttle);
 
 void send_bit(bool value);
 

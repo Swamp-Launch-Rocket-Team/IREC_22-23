@@ -3,29 +3,51 @@
 #include "dshot.h"
 #include "busynano.h"
 
-int main()
+int main(int argc, char* argv[])
 {
-    dshot_init(8, DSHOT600);
-
-    // unsigned short throttle = 0;
-    // while(1)
-    // {
-    //     std::string s;
-    //     std::getline(std::cin, s);
-    //     try { throttle = stoi(s); } catch (std::invalid_argument) {}
-    //     dshot_send(throttle);
-    // }
-
-    while(1)
+    // Initialization
+    dshot_init(8, DSHOT300);
+    std::cout << "Press enter to sent startup command" << std::endl;
+    std::string s;
+    std::getline(std::cin, s);
+    for(int i = 0; i < 300; i++)
     {
-        busy10ns(500000);
-        dshot_send(1999);
+        busy10ns(100000);
+        dshot_throttle(1999);
     }
-
-    // while(1)
-    // {
-    //     send_bit(0);
-    // }
+    for(int i = 0; i < 300; i++)
+    {
+        busy10ns(100000);
+        dshot_throttle(0);
+    }
+    for(int i = 0; i < 300; i++)
+    {
+        busy10ns(100000);
+        dshot_throttle(1999);
+    }
+    for(int i = 0; i < 300; i++)
+    {
+        busy10ns(100000);
+        dshot_throttle(0);
+    }
+    std::cout << "Startup complete." << std::endl;
+    int throttle;
+    for(throttle = 700; throttle < 2200; throttle++)
+    {
+        for(int i = 0; i < 5; i++)
+        {
+            busy10ns(200000);
+            dshot_throttle(throttle);
+        }
+    }
+    for(; throttle > 500; throttle--)
+    {
+        for(int i = 0; i < 5; i++)
+        {
+            busy10ns(200000);
+            dshot_throttle(throttle);
+        }
+    }
 
     return 0;
 }
