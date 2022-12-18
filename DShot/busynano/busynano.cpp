@@ -12,15 +12,6 @@ void busy10ns(uint32_t periods)
         __asm volatile("nop\n");
         __asm volatile("nop\n");
         __asm volatile("nop\n");
-        __asm volatile("nop\n");
-        __asm volatile("nop\n");
-        __asm volatile("nop\n");
-        __asm volatile("nop\n");
-        __asm volatile("nop\n");
-        __asm volatile("nop\n");
-        __asm volatile("nop\n");
-        __asm volatile("nop\n");
-        __asm volatile("nop\n");
     }
 }
 

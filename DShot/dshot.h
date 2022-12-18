@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <wiringPi.h>
 #include <cstring>
-#include "busynano.h"
+#include "busynano/busynano.h"
 
 typedef enum 
 {

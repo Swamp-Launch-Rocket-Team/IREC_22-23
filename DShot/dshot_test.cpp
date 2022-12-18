@@ -1,12 +1,12 @@
 #include <iostream>
 #include <string>
 #include "dshot.h"
-#include "busynano.h"
+#include "busynano/busynano.h"
 
 int main(int argc, char* argv[])
 {
     // Initialization
-    dshot_init(8, DSHOT300);
+    dshot_init(8, DSHOT1200);
     std::cout << "Press enter to sent startup command" << std::endl;
     std::string s;
     std::getline(std::cin, s);
