@@ -54,3 +54,5 @@ See `gpio readall` for pinout or refer to the following image.
 [DShot](https://brushlesswhoop.com/dshot-and-bidirectional-dshot/)
 
 [WiringPi](http://wiringpi.com/)
+
+[libcamera](https://www.raspberrypi.com/documentation/computers/camera_software.html)
