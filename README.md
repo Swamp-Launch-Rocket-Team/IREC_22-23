@@ -49,4 +49,6 @@ See `gpio readall` for pinout or refer to the following image.
 
 [MTi-3 IMU](https://www.xsens.com/hubfs/Downloads/Manuals/MTi-1-series-datasheet.pdf)
 
+[MTi Low-Level Documentation](https://www.xsens.com/hubfs/Downloads/Manuals/MT_Low-Level_Documentation.pdf)
+
 [DShot](https://brushlesswhoop.com/dshot-and-bidirectional-dshot/)
