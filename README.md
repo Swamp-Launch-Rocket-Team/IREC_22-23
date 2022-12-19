@@ -52,3 +52,5 @@ See `gpio readall` for pinout or refer to the following image.
 [MTi Low-Level Documentation](https://www.xsens.com/hubfs/Downloads/Manuals/MT_Low-Level_Documentation.pdf)
 
 [DShot](https://brushlesswhoop.com/dshot-and-bidirectional-dshot/)
+
+[WiringPi](http://wiringpi.com/)
