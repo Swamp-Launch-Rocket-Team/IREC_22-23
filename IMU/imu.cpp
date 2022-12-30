@@ -186,3 +186,26 @@ void conv_to_float(const void *buf, imu_data_t::axes_t *axes)
 
     return;
 }
+
+// Takes cmd without checksum, calculates checksum and sends message to IMU
+bool send_xbus_msg(vector<unsigned char> *cmd)
+{
+    unsigned char checksum = 0xFF;
+
+    for (int i = 1; i < cmd->size(); ++i)
+    {
+        checksum += cmd->at(i);
+    }
+
+    checksum = (~checksum) + 1;
+
+    cmd->push_back(checksum);
+
+    if (write(file, &cmd[0], cmd->size()) != cmd->size())
+    {
+        cout << "Error writing xbus command to I2C device" << endl;
+        return false;
+    }
+
+    return true;
+}

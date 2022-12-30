@@ -32,3 +32,4 @@ bool read_data(void *buf);
 void find_byte_offset();
 void parse_msg(const void *buf, imu_data_t *imu_data);
 void conv_to_float(const void *buf, imu_data_t::axes_t *axes);
+bool send_xbus_msg(vector<unsigned char> *cmd);
