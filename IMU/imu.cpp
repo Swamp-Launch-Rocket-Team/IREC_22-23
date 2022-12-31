@@ -1,19 +1,12 @@
 #include "imu.h"
 
-// Opcodes
-#define PRTCL_INFO 0x01
-#define CONF_PRTCL 0x02
-#define CNTRL_PIPE 0x03
-#define PIPE_STATUS 0x04
-#define NOTIF_PIPE 0x05
-#define MEAS_PIPE 0x06
-
-static int file;
+static int file = 0; // File descriptor
 static int data_len = 0; // Length of data message in bytes (determined by current configuration)
 static int heading_byte_offset = 0; // Heading data offset from start of messages in bytes
 static int accel_byte_offset = 0; // Acceleration data offset from start of messages in bytes
 static int ang_v_byte_offset = 0; // Angular velocity data offset from start of messages in bytes
 static int del_v_byte_offset = 0; // Delta V data offset from start of messages in bytes
+static vector<unsigned char> buf; // Buffer where received data is stored
 
 // Initializes IMU file and sets I2C slave
 int imu_init(int address)    
@@ -64,11 +57,11 @@ bool go_to_measurement()
 }
 
 // Reads data using the measurement pipe opcode and write data to buf
-bool read_data(void *buf)
+bool read_data()
 {
-    static const unsigned char READ_DATA[1] = {MEAS_PIPE};
+    static const unsigned char READ_DATA = MEAS_PIPE;
 
-    if (write(file, READ_DATA, 1) != 1 || read(file, buf, data_len) != data_len)
+    if (write(file, &READ_DATA, 1) != 1 || read(file, &buf[0], data_len) != data_len)
     {
         cout << "Error writing/reading from I2C device" << endl;
         return false;
@@ -79,18 +72,17 @@ bool read_data(void *buf)
 // Finds the byte offsets for each set of data
 void find_byte_offset()
 {
-    vector<unsigned char> data;
-    data.resize(2);
+    buf.resize(2);
 
-    static const unsigned char READ_DATA[1] = {MEAS_PIPE};
+    static const unsigned char READ_DATA = MEAS_PIPE;
 
-    if (write(file, READ_DATA, 1) != 1 || read(file, &data[0], 2) != 2)
+    if (write(file, &READ_DATA, 1) != 1 || read(file, &buf[0], 2) != 2)
     {
         cout << "Error writing/reading from I2C device" << endl;
         return;
     }
 
-    data_len = data[1] + 3;
+    data_len = buf[1] + 3;
 
     if (data_len == 0)
     {
@@ -100,9 +92,9 @@ void find_byte_offset()
 
     sleep(1);
 
-    data.resize(data_len);
+    buf.resize(data_len);
 
-    if (write(file, READ_DATA, 1) != 1 || read(file, &data[0], data_len) != data_len)
+    if (write(file, &READ_DATA, 1) != 1 || read(file, &buf[0], data_len) != data_len)
     {
         cout << "Error writing/reading from I2C device" << endl;
         return;
@@ -110,19 +102,19 @@ void find_byte_offset()
 
     for (int i = 2; i < data_len; ++i)
     {
-        if (data[i] == 0x20 && data[i+1] == 0x30 && data[i+2] == 0x0C)
+        if (buf[i] == 0x20 && buf[i+1] == 0x30 && buf[i+2] == 0x0C)
         {
             heading_byte_offset = i + 3;
         }
-        else if (data[i] == 0x40 && data[i+1] == 0x30 && data[i+2] == 0x0C)
+        else if (buf[i] == 0x40 && buf[i+1] == 0x30 && buf[i+2] == 0x0C)
         {
             accel_byte_offset = i + 3;
         }
-        else if (data[i] == 0x80 && data[i+1] == 0x20 && data[i+2] == 0x0C)
+        else if (buf[i] == 0x80 && buf[i+1] == 0x20 && buf[i+2] == 0x0C)
         {
             ang_v_byte_offset = i + 3;
         }
-        else if (data[i] == 0x40 && data[i+1] == 0x10 && data[i+2] == 0x0C)
+        else if (buf[i] == 0x40 && buf[i+1] == 0x10 && buf[i+2] == 0x0C)
         {
             del_v_byte_offset = i + 3;
         }
@@ -147,40 +139,42 @@ void find_byte_offset()
     return;
 }
 
-// Write data to imu_data struct, requires find_byte_offset to be run first
-void parse_msg(const void *buf, imu_data_t *imu_data)
+// Write data to imu_data struct, requires find_byte_offset to be run first \return imu_data_t object with parsed data
+imu_data_t parse_msg()
 {
-    conv_to_float(buf + heading_byte_offset, &(imu_data->heading));
-    conv_to_float(buf + accel_byte_offset, &(imu_data->accel));
-    conv_to_float(buf + del_v_byte_offset, &(imu_data->del_v));
-    conv_to_float(buf + ang_v_byte_offset, &(imu_data->ang_v));
+    static imu_data_t imu_data;
 
-    return;
+    conv_to_float(&heading_byte_offset, &(imu_data.heading));
+    conv_to_float(&accel_byte_offset, &(imu_data.accel));
+    conv_to_float(&del_v_byte_offset, &(imu_data.del_v));
+    conv_to_float(&ang_v_byte_offset, &(imu_data.ang_v));
+
+    return imu_data;
 }
 
 // Converts set of data to floats to be stored in axes_t struct
-void conv_to_float(const void *buf, imu_data_t::axes_t *axes) 
+void conv_to_float(const int *byte_offset, imu_data_t::axes_t *axes) 
 {
     static unsigned char parse_array[4] = {0,0,0,0};
 
-    parse_array[3] = *(unsigned char*)(buf);
-    parse_array[2] = *(unsigned char*)(buf + 1);
-    parse_array[1] = *(unsigned char*)(buf + 2);
-    parse_array[0] = *(unsigned char*)(buf + 3);
+    parse_array[3] = buf[*byte_offset];
+    parse_array[2] = buf[*byte_offset + 1];
+    parse_array[1] = buf[*byte_offset + 2];
+    parse_array[0] = buf[*byte_offset + 3];
 
     axes->x = *(float*)&parse_array;
 
-    parse_array[3] = *(unsigned char*)(buf + 4);
-    parse_array[2] = *(unsigned char*)(buf + 5);
-    parse_array[1] = *(unsigned char*)(buf + 6);
-    parse_array[0] = *(unsigned char*)(buf + 7);
+    parse_array[2] = buf[*byte_offset + 5];
+    parse_array[3] = buf[*byte_offset + 4];
+    parse_array[1] = buf[*byte_offset + 6];
+    parse_array[0] = buf[*byte_offset + 7];
 
     axes->y = *(float*)&parse_array;
 
-    parse_array[3] = *(unsigned char*)(buf + 8);
-    parse_array[2] = *(unsigned char*)(buf + 9);
-    parse_array[1] = *(unsigned char*)(buf + 10);
-    parse_array[0] = *(unsigned char*)(buf + 11);
+    parse_array[3] = buf[*byte_offset + 8];
+    parse_array[2] = buf[*byte_offset + 9];
+    parse_array[1] = buf[*byte_offset + 10];
+    parse_array[0] = buf[*byte_offset + 11];
 
     axes->z = *(float*)&parse_array;
 
@@ -208,4 +202,29 @@ bool send_xbus_msg(vector<unsigned char> *cmd)
     }
 
     return true;
+}
+
+// IN PROGRESS, MAY NOT WORK CORRECTLY!!! Reads continuously up to 1 second for a message from the specified opcode and writes the message of specified length to buf \return Time taken to receive message, -1 if no message received
+int continuous_read(vector<unsigned char> *data, unsigned char opcode)
+{
+    vector<unsigned char> temp = *data;
+    
+    auto start = chrono::high_resolution_clock::now();
+    auto current = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(current - start);
+
+    while (duration.count() < 1000)
+    {
+        
+
+    if ((write(file, &opcode, 1) == 1 || read(file, &data[0], data->size()) == data->size()) && temp != *data)
+    {
+        return duration.count();
+    }
+
+    current = chrono::high_resolution_clock::now();
+    duration = chrono::duration_cast<chrono::milliseconds>(current - start);
+    }
+
+    return -1;
 }
