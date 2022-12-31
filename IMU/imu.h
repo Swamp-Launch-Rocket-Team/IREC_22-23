@@ -37,9 +37,9 @@ struct imu_data_t
 int imu_init(int address);
 bool go_to_config();
 bool go_to_measurement();
-bool read_data();
+imu_data_t read_data();
+void parse_msg(imu_data_t *imu_data);
 void find_byte_offset();
-imu_data_t parse_msg();
 void conv_to_float(const int *byte_offset, imu_data_t::axes_t *axes);
 bool send_xbus_msg(vector<unsigned char> cmd);
 int continuous_read(vector<unsigned char> *buf, unsigned char opcode);

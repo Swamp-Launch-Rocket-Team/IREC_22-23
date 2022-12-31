@@ -57,16 +57,21 @@ bool go_to_measurement()
 }
 
 // Reads data using the measurement pipe opcode and write data to buf
-bool read_data()
+imu_data_t read_data()
 {
+    static imu_data_t imu_data;
+
     static const unsigned char READ_DATA = MEAS_PIPE;
 
     if (write(file, &READ_DATA, 1) != 1 || read(file, &buf[0], data_len) != data_len)
     {
         cout << "Error writing/reading from I2C device" << endl;
-        return false;
+        return imu_data;
     }
-    return true;
+
+    parse_msg(&imu_data);
+
+    return imu_data;
 }
 
 // Finds the byte offsets for each set of data
@@ -140,16 +145,14 @@ void find_byte_offset()
 }
 
 // Write data to imu_data struct, requires find_byte_offset to be run first \return imu_data_t object with parsed data
-imu_data_t parse_msg()
+void parse_msg(imu_data_t *imu_data)
 {
-    static imu_data_t imu_data;
+    conv_to_float(&heading_byte_offset, &(imu_data->heading));
+    conv_to_float(&accel_byte_offset, &(imu_data->accel));
+    conv_to_float(&del_v_byte_offset, &(imu_data->del_v));
+    conv_to_float(&ang_v_byte_offset, &(imu_data->ang_v));
 
-    conv_to_float(&heading_byte_offset, &(imu_data.heading));
-    conv_to_float(&accel_byte_offset, &(imu_data.accel));
-    conv_to_float(&del_v_byte_offset, &(imu_data.del_v));
-    conv_to_float(&ang_v_byte_offset, &(imu_data.ang_v));
-
-    return imu_data;
+    return;
 }
 
 // Converts set of data to floats to be stored in axes_t struct
