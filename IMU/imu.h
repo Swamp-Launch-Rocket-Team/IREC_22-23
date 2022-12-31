@@ -20,7 +20,7 @@
 using namespace std;
 
 struct imu_data_t
-{ 
+{
     struct axes_t
     {
         float x = 0;
@@ -41,5 +41,5 @@ bool read_data();
 void find_byte_offset();
 imu_data_t parse_msg();
 void conv_to_float(const int *byte_offset, imu_data_t::axes_t *axes);
-bool send_xbus_msg(vector<unsigned char> *cmd);
-int continuous_read(vector<unsigned char> *buf, int length, unsigned char opcode);
+bool send_xbus_msg(vector<unsigned char> cmd);
+int continuous_read(vector<unsigned char> *buf, unsigned char opcode);

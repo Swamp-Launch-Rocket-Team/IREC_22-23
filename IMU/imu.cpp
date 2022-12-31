@@ -164,8 +164,8 @@ void conv_to_float(const int *byte_offset, imu_data_t::axes_t *axes)
 
     axes->x = *(float*)&parse_array;
 
-    parse_array[2] = buf[*byte_offset + 5];
     parse_array[3] = buf[*byte_offset + 4];
+    parse_array[2] = buf[*byte_offset + 5];
     parse_array[1] = buf[*byte_offset + 6];
     parse_array[0] = buf[*byte_offset + 7];
 
@@ -182,20 +182,20 @@ void conv_to_float(const int *byte_offset, imu_data_t::axes_t *axes)
 }
 
 // Takes cmd without checksum, calculates checksum and sends message to IMU
-bool send_xbus_msg(vector<unsigned char> *cmd)
+bool send_xbus_msg(vector<unsigned char> cmd)
 {
     unsigned char checksum = 0xFF;
 
-    for (int i = 1; i < cmd->size(); ++i)
+    for (int i = 1; i < cmd.size(); ++i)
     {
-        checksum += cmd->at(i);
+        checksum += cmd[i];
     }
 
     checksum = (~checksum) + 1;
 
-    cmd->push_back(checksum);
+    cmd.push_back(checksum);
 
-    if (write(file, &cmd[0], cmd->size()) != cmd->size())
+    if (write(file, &cmd[0], cmd.size()) != cmd.size())
     {
         cout << "Error writing xbus command to I2C device" << endl;
         return false;
