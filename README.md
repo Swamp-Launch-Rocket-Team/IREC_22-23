@@ -26,7 +26,7 @@ Add
 `sudo nano /boot/config.txt`
 
 Insert 
-> dtparam=i2c1_baudrate=50000
+> dtparam=i2c1_baudrate=400000
 
 ## Wiring
 See `gpio readall` for pinout or refer to the following image.
