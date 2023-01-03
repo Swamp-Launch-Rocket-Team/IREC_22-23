@@ -25,5 +25,4 @@ class PID
         float get_kd();
         float get_prev_error();
         float compute_PID(float setpoint, float currentpoint);
-
 };

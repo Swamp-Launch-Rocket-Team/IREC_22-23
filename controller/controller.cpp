@@ -4,6 +4,8 @@ using namespace std;
 
 controller::controller(){}
 
+// Controller constructor
+// \param filename: name of *.cfg file
 controller::controller(string filename)
 {
     cfg_data_t cfg_data = parse_cfg("proto.cfg");
@@ -14,11 +16,15 @@ controller::controller(string filename)
     yaw = PID(cfg_data.z.kp, cfg_data.z.ki, cfg_data.z.kd);
 }
 
-controller::~controller(){}
-
-controller::motor_cmd_t controller::control_loop(float x_setpoint, float y_setpoint, float z_setpoint, float yaw_setpoint, state_t &state)
+// Calculate motor throttles
+// \param x_setpoint: desired x-coord target 
+// \param y_setpoint: desired y-coord target 
+// \param z_setpoint desired z-coord target 
+// \param state: current state of IMU
+// \return motor_cmd_t struct with motor throttle commands
+motor_cmd_t controller::control_loop(float x_setpoint, float y_setpoint, float z_setpoint, float yaw_setpoint, state_t &state)
 {
-    controller::motor_cmd_t motor_cmd;
+    motor_cmd_t motor_cmd;
     
     float rel_x = 0; // Look into MATLAB code to figure this out
     float rel_y = 0; // Determined by dark magic!

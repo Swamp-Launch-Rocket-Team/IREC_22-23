@@ -5,6 +5,16 @@
 #include "state.h"
 #include <cmath>
 
+// Struct for storing motor RPM commands
+struct motor_cmd_t
+{
+    int motor_1;
+    int motor_2;
+    int motor_3;
+    int motor_4;
+};
+
+// Controller class, stores PID loop for each controller
 class controller
 {
     private:
@@ -16,17 +26,9 @@ class controller
         PID yaw;
 
     public:
-        struct motor_cmd_t
-        {
-            int motor_1;
-            int motor_2;
-            int motor_3;
-            int motor_4;
-        };
-
         controller();
         controller(std::string filename);
-        ~controller();
-        controller::motor_cmd_t control_loop(float x_setpoint, float y_setpoint, float z_setpoint, float yaw_setpoint, state_t &state);
+        // ~controller();
+        motor_cmd_t control_loop(float x_setpoint, float y_setpoint, float z_setpoint, float yaw_setpoint, state_t &state);
 
 };
