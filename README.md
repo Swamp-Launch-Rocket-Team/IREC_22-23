@@ -26,7 +26,8 @@ Add
 `sudo nano /boot/config.txt`
 
 Insert 
-> dtparam=i2c1_baudrate=50000
+> dtparam=i2c1_baudrate=400000
+This may need to be different (300k seems to be better for the Pi 4)
 
 ## Wiring
 See `gpio readall` for pinout or refer to the following image.
