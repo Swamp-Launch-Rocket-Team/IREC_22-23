@@ -2,7 +2,7 @@
 #include <chrono>
 
 void print_data(unsigned char data[], int len);
-void print_data(const vector<unsigned char> *data);
+void print_data(const vector<unsigned char> &data);
 void print_all(imu_data_t *imu_data);
 
 int main()
@@ -27,11 +27,19 @@ int main()
     // go_to_measurement();
     // sleep(3);
 
+    auto start = chrono::high_resolution_clock::now();
+    auto cur = chrono::high_resolution_clock::now();
+
     while (true)
     {
-        imu_data = read_data();
+        // start = chrono::high_resolution_clock::now();
+
+        imu_data = imu_read_data();
 
         print_all(&imu_data);
+
+        // cur = chrono::high_resolution_clock::now();
+        // usleep(10000 - chrono::duration_cast<chrono::microseconds>(cur - start).count());
     }
 
 
@@ -51,11 +59,11 @@ void print_data(unsigned char data[], int len)
     std::cout << std::endl;
 }
 
-void print_data(const vector<unsigned char> *data)
+void print_data(const vector<unsigned char> &data)
 {
-    for (int i = 0; i < data->size(); ++i)
+    for (int i = 0; i < data.size(); ++i)
     {
-        std::cout << std::hex << (int)data->at(i);
+        std::cout << std::hex << (int)data[i];
         std::cout << " ";
     }
     std::cout << std::endl;

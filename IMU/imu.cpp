@@ -7,6 +7,7 @@ static int accel_byte_offset = 0; // Acceleration data offset from start of mess
 static int ang_v_byte_offset = 0; // Angular velocity data offset from start of messages in bytes
 static int del_v_byte_offset = 0; // Delta V data offset from start of messages in bytes
 static vector<unsigned char> buf; // Buffer where received data is stored
+static imu_data_t offset;
 
 // Initializes IMU file and sets I2C slave
 int imu_init(int address)    
@@ -25,7 +26,7 @@ int imu_init(int address)
         return -1;
     }
 
-    find_byte_offset();
+    byte_offset();
 
     return file;
 }
@@ -57,11 +58,11 @@ bool go_to_measurement()
 }
 
 // Reads data using the measurement pipe opcode and write data to buf
-imu_data_t read_data()
+imu_data_t imu_read_data()
 {
-    static imu_data_t imu_data;
+    imu_data_t imu_data;
 
-    static const unsigned char READ_DATA = MEAS_PIPE;
+    const unsigned char READ_DATA = MEAS_PIPE;
 
     if (write(file, &READ_DATA, 1) != 1 || read(file, &buf[0], data_len) != data_len)
     {
@@ -69,9 +70,55 @@ imu_data_t read_data()
         return imu_data;
     }
 
-    parse_msg(&imu_data);
+    parse_msg(imu_data);
+
+    imu_data.accel.x -= offset.accel.x;
+    imu_data.accel.y -= offset.accel.y;
+    imu_data.accel.z -= offset.accel.z;
+    imu_data.del_v.x -= offset.del_v.x;
+    imu_data.del_v.y -= offset.del_v.y;
+    imu_data.del_v.z -= offset.del_v.z;
+    imu_data.ang_v.x -= offset.ang_v.x;
+    imu_data.ang_v.y -= offset.ang_v.y;
+    imu_data.ang_v.z -= offset.ang_v.z;
+    
+    // Prints out if data is NaN
+    // if (isnan(imu_data.heading.x))
+    // {
+    //     cout << "Error: NaN found in message - ";
+    //     for (int i = 0; i < data_len; ++i)
+    //     {
+    //         cout << hex << (int)buf[0] << " ";
+    //     }
+    //     cout << endl;
+    // }
 
     return imu_data;
+}
+
+// Tries to find byte offsets for IMU data, if it cannot find offsets it tries again
+void byte_offset()
+{
+    find_byte_offset();
+    
+    if (!check_byte_offset())
+    {
+        cout << "Trying to find byte offsets again..." << endl;
+
+        sleep(1);
+
+        find_byte_offset();
+
+        if(!check_byte_offset())
+        {
+            cout << "Error finding byte offsets!" << endl;
+            return;
+        }
+    }
+
+    cout << "Success: IMU byte offsets found" << endl;
+
+    return;
 }
 
 // Finds the byte offsets for each set of data
@@ -79,7 +126,15 @@ void find_byte_offset()
 {
     buf.resize(2);
 
-    static const unsigned char READ_DATA = MEAS_PIPE;
+    const unsigned char READ_DATA = MEAS_PIPE;
+
+    if (write(file, &READ_DATA, 1) != 1 || read(file, &buf[0], 2) != 2)
+    {
+        cout << "Error writing/reading from I2C device" << endl;
+        return;
+    }
+
+    sleep(1);
 
     if (write(file, &READ_DATA, 1) != 1 || read(file, &buf[0], 2) != 2)
     {
@@ -124,62 +179,74 @@ void find_byte_offset()
             del_v_byte_offset = i + 3;
         }
     }
+}
+
+// Checks if all byte offsets were found
+// \return true if all found, false if any are not found
+bool check_byte_offset()
+{
+    bool byte_offsets_found = true;
 
     if (heading_byte_offset == 0)
     {
         cout << "Error finding heading byte offset" << endl;
+        byte_offsets_found = false;
     }
     if (accel_byte_offset == 0)
     {
         cout << "Error finding acceleration byte offset" << endl;
+        byte_offsets_found = false;
     }
     if (ang_v_byte_offset == 0)
     {
         cout << "Error finding angular velocity byte offset" << endl;
+        byte_offsets_found = false;
     }
     if (del_v_byte_offset == 0)
     {
         cout << "Error finding delta V byte offset" << endl;
+        byte_offsets_found = false;
     }
-    return;
+
+    return byte_offsets_found;
 }
 
 // Write data to imu_data struct, requires find_byte_offset to be run first \return imu_data_t object with parsed data
-void parse_msg(imu_data_t *imu_data)
+void parse_msg(imu_data_t &imu_data)
 {
-    conv_to_float(&heading_byte_offset, &(imu_data->heading));
-    conv_to_float(&accel_byte_offset, &(imu_data->accel));
-    conv_to_float(&del_v_byte_offset, &(imu_data->del_v));
-    conv_to_float(&ang_v_byte_offset, &(imu_data->ang_v));
+    conv_to_float(heading_byte_offset, imu_data.heading);
+    conv_to_float(accel_byte_offset, imu_data.accel);
+    conv_to_float(del_v_byte_offset, imu_data.del_v);
+    conv_to_float(ang_v_byte_offset, imu_data.ang_v);
 
     return;
 }
 
 // Converts set of data to floats to be stored in axes_t struct
-void conv_to_float(const int *byte_offset, imu_data_t::axes_t *axes) 
+void conv_to_float(const int &byte_offset, axes_t &axes) 
 {
-    static unsigned char parse_array[4] = {0,0,0,0};
+    unsigned char parse_array[4] = {0,0,0,0};
 
-    parse_array[3] = buf[*byte_offset];
-    parse_array[2] = buf[*byte_offset + 1];
-    parse_array[1] = buf[*byte_offset + 2];
-    parse_array[0] = buf[*byte_offset + 3];
+    parse_array[3] = buf[byte_offset];
+    parse_array[2] = buf[byte_offset + 1];
+    parse_array[1] = buf[byte_offset + 2];
+    parse_array[0] = buf[byte_offset + 3];
 
-    axes->x = *(float*)&parse_array;
+    axes.x = *(float*)&parse_array;
 
-    parse_array[3] = buf[*byte_offset + 4];
-    parse_array[2] = buf[*byte_offset + 5];
-    parse_array[1] = buf[*byte_offset + 6];
-    parse_array[0] = buf[*byte_offset + 7];
+    parse_array[3] = buf[byte_offset + 4];
+    parse_array[2] = buf[byte_offset + 5];
+    parse_array[1] = buf[byte_offset + 6];
+    parse_array[0] = buf[byte_offset + 7];
 
-    axes->y = *(float*)&parse_array;
+    axes.y = *(float*)&parse_array;
 
-    parse_array[3] = buf[*byte_offset + 8];
-    parse_array[2] = buf[*byte_offset + 9];
-    parse_array[1] = buf[*byte_offset + 10];
-    parse_array[0] = buf[*byte_offset + 11];
+    parse_array[3] = buf[byte_offset + 8];
+    parse_array[2] = buf[byte_offset + 9];
+    parse_array[1] = buf[byte_offset + 10];
+    parse_array[0] = buf[byte_offset + 11];
 
-    axes->z = *(float*)&parse_array;
+    axes.z = *(float*)&parse_array;
 
     return;
 }
@@ -207,27 +274,68 @@ bool send_xbus_msg(vector<unsigned char> cmd)
     return true;
 }
 
-// IN PROGRESS, MAY NOT WORK CORRECTLY!!! Reads continuously up to 1 second for a message from the specified opcode and writes the message of specified length to buf \return Time taken to receive message, -1 if no message received
-int continuous_read(vector<unsigned char> *data, unsigned char opcode)
+// 
+inline void set_offset(imu_data_t &_offset)
 {
-    vector<unsigned char> temp = *data;
+    offset = _offset;
     
-    auto start = chrono::high_resolution_clock::now();
-    auto current = chrono::high_resolution_clock::now();
-    auto duration = chrono::duration_cast<chrono::milliseconds>(current - start);
+    return;
+}
 
-    while (duration.count() < 1000)
+// 
+void imu_moving_avg_calibrate(map<int, imu_data_t> &data_set)
+{
+    imu_data_t imu_data;
+
+    for (auto it = data_set.begin(); it != data_set.end(); ++it)
     {
+        imu_data.accel.x += it->second.accel.x;
+        imu_data.accel.y += it->second.accel.y;
+        imu_data.accel.z += it->second.accel.z;
+        imu_data.del_v.x += it->second.del_v.x;
+        imu_data.del_v.y += it->second.del_v.y;
+        imu_data.del_v.z += it->second.del_v.z;
+        imu_data.ang_v.x += it->second.ang_v.x;
+        imu_data.ang_v.y += it->second.ang_v.y;
+        imu_data.ang_v.z += it->second.ang_v.z;
+    }
+
+    imu_data.accel.x /= data_set.size();
+    imu_data.accel.y /= data_set.size();
+    imu_data.accel.z /= data_set.size();
+    imu_data.del_v.x /= data_set.size();
+    imu_data.del_v.y /= data_set.size();
+    imu_data.del_v.z /= data_set.size();
+    imu_data.ang_v.x /= data_set.size();
+    imu_data.ang_v.y /= data_set.size();
+    imu_data.ang_v.z /= data_set.size();
+
+    set_offset(imu_data);
+
+    return;
+}
+
+// IN PROGRESS, MAY NOT WORK CORRECTLY!!! Reads continuously up to 1 second for a message from the specified opcode and writes the message of specified length to buf \return Time taken to receive message, -1 if no message received
+// int continuous_read(vector<unsigned char> *data, unsigned char opcode)
+// {
+//     vector<unsigned char> temp = *data;
+    
+//     auto start = chrono::high_resolution_clock::now();
+//     auto current = chrono::high_resolution_clock::now();
+//     auto duration = chrono::duration_cast<chrono::milliseconds>(current - start);
+
+//     while (duration.count() < 1000)
+//     {
         
 
-    if ((write(file, &opcode, 1) == 1 || read(file, &data[0], data->size()) == data->size()) && temp != *data)
-    {
-        return duration.count();
-    }
+//     if ((write(file, &opcode, 1) == 1 || read(file, &data[0], data->size()) == data->size()) && temp != *data)
+//     {
+//         return duration.count();
+//     }
 
-    current = chrono::high_resolution_clock::now();
-    duration = chrono::duration_cast<chrono::milliseconds>(current - start);
-    }
+//     current = chrono::high_resolution_clock::now();
+//     duration = chrono::duration_cast<chrono::milliseconds>(current - start);
+//     }
 
-    return -1;
-}
+//     return -1;
+// }
