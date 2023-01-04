@@ -10,12 +10,14 @@ controller::controller(){}
 // \param filename: name of *.cfg file
 controller::controller(string filename)
 {
-    cfg_data_t cfg_data = parse_cfg("proto.cfg");
+    cfg_data_t cfg_data = parse_cfg(filename);
 
     throttle = PID(cfg_data.throttle.kp, cfg_data.throttle.ki, cfg_data.throttle.kd);
     roll = PID(cfg_data.x.kp, cfg_data.x.ki, cfg_data.x.kd);
     pitch = PID(cfg_data.y.kp, cfg_data.y.ki, cfg_data.y.kd);
     yaw = PID(cfg_data.z.kp, cfg_data.z.ki, cfg_data.z.kd);
+    x_pos = PID(cfg_data.x_pos.kp, cfg_data.x_pos.ki, cfg_data.x_pos.kd);
+    y_pos = PID(cfg_data.y_pos.kp, cfg_data.y_pos.ki, cfg_data.y_pos.kd);
 }
 
 // Calculate motor throttles
