@@ -1,5 +1,7 @@
 #include "controller.h"
 
+#define PI 3.14159265358979323846
+
 using namespace std;
 
 controller::controller(){}
@@ -26,15 +28,18 @@ motor_cmd_t controller::control_loop(float x_setpoint, float y_setpoint, float z
 {
     motor_cmd_t motor_cmd;
     
-    float rel_x = 0; // Look into MATLAB code to figure this out
-    float rel_y = 0; // Determined by dark magic!
+    // Make sure the signs on this entire function are correct
+    float rel_x = cos(state.imu_data.heading.z * PI / 180); // Look into MATLAB code to figure this out
+    float rel_y = sin(state.imu_data.heading.z * PI / 180); // Determined by dark magic!
     
     float roll_setpoint = y_pos.compute_PID(y_setpoint, rel_y); // should the setpoints be different? maybe not but also possibly
     float pitch_setpoint = x_pos.compute_PID(x_setpoint, rel_x);
 
     float roll_cmd = roll.compute_PID(roll_setpoint, state.imu_data.heading.x);
     float pitch_cmd = pitch.compute_PID(pitch_setpoint, state.imu_data.heading.y);
-    float yaw_cmd = yaw.compute_PID(yaw_setpoint, state.imu_data.heading.z);
+    float yaw_cmd = yaw.compute_PID(yaw_setpoint, state.imu_data.heading.z); // How do we make the yaw take the shortest path to target? Ex: state -179' target +179', we want it to go -2', not +358'.
+                                                                             // Possible solutions: give it the distance to yaw_setpoint instead of setpoint itself. Ex: Pass in -2' instead of +179'
+                                                                             // We would need to potentially write a thing to make sure the yaw wraps around correctly? (maybe not though)
     float throttle_cmd = throttle.compute_PID(z_setpoint, state.altitude);
 
     motor_cmd.motor_1 = round(throttle_cmd + roll_cmd + pitch_cmd + yaw_cmd); // Double check this, this is copied from the matlab vid
