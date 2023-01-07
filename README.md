@@ -58,3 +58,6 @@ See `gpio readall` for pinout or refer to the following image.
 [WiringPi](http://wiringpi.com/)
 
 [libcamera](https://www.raspberrypi.com/documentation/computers/camera_software.html)
+
+[Ulimate GPS on RPi](https://learn.adafruit.com/adafruit-ultimate-gps-on-the-raspberry-pi/introduction)
+
