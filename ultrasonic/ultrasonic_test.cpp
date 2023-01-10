@@ -6,15 +6,11 @@ int main()
 {
     ultrasonic_init(8, 9);
 
-    wiringPiSetup();
-    pinMode(7, OUTPUT);
-
     while(true)
     {
-        digitalWrite(7, HIGH);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        digitalWrite(7, LOW);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        float distance = ultrasonic_read();
+        std::cout << "\r" << std::flush << distance << "     ";
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     return 0;

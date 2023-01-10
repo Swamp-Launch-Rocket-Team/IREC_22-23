@@ -31,12 +31,8 @@ void ultrasonic_init(int trigger_pin, int echo_pin)
 // Thread-safe function to read form the buffer
 float ultrasonic_read()
 {
-    // Critical region
-    // Lock mutex
     buffer.mutex.lock();
-    // Read from buffer
     float value = buffer.value;
-    // Unlock mutex
     buffer.mutex.unlock();
     return value;
 }
@@ -44,12 +40,8 @@ float ultrasonic_read()
 // Thread-safe function to write to the buffer
 static void ultrasonic_write(float value)
 {
-    // Critical region
-    // Lock mutex
     buffer.mutex.lock();
-    // Write to buffer
     buffer.value = value;
-    // Unlock mutex
     buffer.mutex.unlock();
 }
 
@@ -60,7 +52,7 @@ static void sensor_read(int trigger_pin, int echo_pin)
     {
         // Send a 10 microsecond pulse to the trigger pin
         digitalWrite(trigger_pin, HIGH);
-        std::this_thread::sleep_for(std::chrono::microseconds(10));
+        std::this_thread::sleep_for(std::chrono::microseconds(20));
         digitalWrite(trigger_pin, LOW);
 
         // Wait for the echo pin to go high (indicating the start of the echo pulse)
@@ -80,6 +72,6 @@ static void sensor_read(int trigger_pin, int echo_pin)
         ultrasonic_write(distance);
 
         // Sleep for 100 milliseconds
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
 }
