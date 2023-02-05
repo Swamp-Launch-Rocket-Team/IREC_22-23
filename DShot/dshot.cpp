@@ -2,22 +2,20 @@
 
 // https://brushlesswhoop.com/dshot-and-bidirectional-dshot/
 
-// Timings in nanoseconds.
-// Array index 1 represents logical 1. Array index 0 represents logical 0.
-// First value in pair is time high. Second value is time low.
-static std::pair<long, long> dshot_timings[2];
-
-static uint8_t dshot_pin;
-
 // static void send_bit(bool value);
 
-void dshot_init(uint8_t pin_number, dshot_standard_t standard)
+std::pair<long, long> Dshot::dshot_timings[2];
+
+Dshot::Dshot(uint8_t pin_number)
 {
 	// Set up output pin
 	wiringPiSetup();
 	dshot_pin = pin_number;
 	pinMode(dshot_pin, OUTPUT);
+}
 
+void Dshot::set_speed_standard(dshot_standard_t standard)
+{
 	// Set up timings
 	int bit_length;
 	switch(standard)
@@ -46,7 +44,7 @@ void dshot_init(uint8_t pin_number, dshot_standard_t standard)
 	dshot_timings[0].second = bit_length - dshot_timings[0].first;
 }
 
-void dshot_send(uint16_t command)
+void Dshot::send(uint16_t command)
 {
 	// Error if not initialized
 	if(!dshot_timings[0].first)
@@ -76,7 +74,7 @@ void dshot_send(uint16_t command)
 	}
 }
 
-void dshot_throttle(uint16_t throttle)
+void Dshot::throttle(uint16_t throttle)
 {
 	// Max throttle is 1999
 	if(throttle > 1999)
@@ -87,10 +85,10 @@ void dshot_throttle(uint16_t throttle)
 	// Throttle ranges from 48-2047
 	throttle += 48;
 
-	dshot_send(throttle);	
+	send(throttle);	
 }
 
-void send_bit(bool value)
+void Dshot::send_bit(bool value)
 {
 	// Time high
 	digitalWrite(dshot_pin, 1);
@@ -99,4 +97,38 @@ void send_bit(bool value)
 	// Time low
 	digitalWrite(dshot_pin, 0);
 	busy10ns(dshot_timings[value].second);
+}
+
+void Dshot::startup()
+{
+	for(int i = 0; i < 1000; i++)
+    {
+        busy10ns(100000);
+        throttle(1999);
+    }
+    for(int i = 0; i < 1000; i++)
+    {
+        busy10ns(100000);
+        throttle(0);
+    }
+}
+
+void group_startup(std::vector<Dshot> motor_list)
+{
+	for(int i = 0; i < 1000; i++)
+    {
+        busy10ns(100000);
+		for(int i = 0; i < motor_list.size(); i++)
+		{
+        	motor_list[i].throttle(1999);
+		}
+    }
+    for(int i = 0; i < 1000; i++)
+    {
+        busy10ns(100000);
+		for(int i = 0; i < motor_list.size(); i++)
+		{
+        	motor_list[i].throttle(0);
+		}
+    }
 }

@@ -7,22 +7,39 @@
 #include <stdint.h>
 #include <wiringPi.h>
 #include <cstring>
+#include <vector>
 #include "busynano/busynano.h"
 
-typedef enum 
-{
-	DSHOT150,
-	DSHOT300,
-	DSHOT600,
-	DSHOT1200,
-} dshot_standard_t;
+class Dshot {
+	// Timings in nanoseconds.
+	// Array index 1 represents logical 1. Array index 0 represents logical 0.
+	// First value in pair is time high. Second value is time low.
+	static std::pair<long, long> dshot_timings[2];
 
-void dshot_init(uint8_t pin_number, dshot_standard_t standard);
+public:
+	typedef enum 
+	{
+		DSHOT150,
+		DSHOT300,
+		DSHOT600,
+		DSHOT1200,
+	} dshot_standard_t;
 
-void dshot_send(uint16_t command);
+	uint8_t dshot_pin;
 
-void dshot_throttle(uint16_t throttle);
+	Dshot(uint8_t pin_number);
 
-void send_bit(bool value);
+	static void set_speed_standard(dshot_standard_t standard);
+
+	void send(uint16_t command);
+
+	void throttle(uint16_t throttle);
+
+	void send_bit(bool value);
+
+	void startup();
+};
+
+void group_startup(std::vector<Dshot> motor_list);
 
 #endif
