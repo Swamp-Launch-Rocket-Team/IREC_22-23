@@ -6,26 +6,16 @@
 int main(int argc, char* argv[])
 {
     // Initialization
-    dshot_init(8, DSHOT1200);
+    dshot_init(7, DSHOT300);
     std::cout << "Press enter to sent startup command" << std::endl;
     std::string s;
     std::getline(std::cin, s);
-    for(int i = 0; i < 300; i++)
+    for(int i = 0; i < 1000; i++)
     {
         busy10ns(100000);
         dshot_throttle(1999);
     }
-    for(int i = 0; i < 300; i++)
-    {
-        busy10ns(100000);
-        dshot_throttle(0);
-    }
-    for(int i = 0; i < 300; i++)
-    {
-        busy10ns(100000);
-        dshot_throttle(1999);
-    }
-    for(int i = 0; i < 300; i++)
+    for(int i = 0; i < 1000; i++)
     {
         busy10ns(100000);
         dshot_throttle(0);
@@ -36,7 +26,7 @@ int main(int argc, char* argv[])
     {
         for(int i = 0; i < 5; i++)
         {
-            busy10ns(200000);
+            busy10ns(20000);
             dshot_throttle(throttle);
         }
     }
@@ -44,7 +34,7 @@ int main(int argc, char* argv[])
     {
         for(int i = 0; i < 5; i++)
         {
-            busy10ns(200000);
+            busy10ns(20000);
             dshot_throttle(throttle);
         }
     }
