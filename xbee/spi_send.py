@@ -26,7 +26,7 @@ spi.max_speed_hz = 500000
 spi.mode = 0
 
 # Clear display
-msg = ['a']
+msg = "Test string"
 GPIO.setup(cs, GPIO.OUT)
 
 # TO DO: HOLD DOUT LOW, THEN RESET, THEN WAIT FOR ASSERT LINE
@@ -37,7 +37,7 @@ while 1:
     spi.xfer2(0x7E) # Start of frame delimiter
     spi.xfer2(length_MSB) # Length MSB
     spi.xfer2(length_LSB) # Length LSB
-    spi.xfer2(msg)
+    spi.xfer2(msg) # msg might need to be a single byte, honestly not sure
     spi.xfer2(checksum)
     GPIO.output(cs,True)
     
