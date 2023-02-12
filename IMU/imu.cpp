@@ -26,7 +26,7 @@ int imu_init(int address)
         return -1;
     }
 
-    byte_offset();
+    // byte_offset();
 
     return file;
 }
@@ -72,15 +72,15 @@ imu_data_t imu_read_data()
 
     parse_msg(imu_data);
 
-    imu_data.accel.x -= offset.accel.x;
-    imu_data.accel.y -= offset.accel.y;
-    imu_data.accel.z -= offset.accel.z;
-    imu_data.del_v.x -= offset.del_v.x;
-    imu_data.del_v.y -= offset.del_v.y;
-    imu_data.del_v.z -= offset.del_v.z;
-    imu_data.ang_v.x -= offset.ang_v.x;
-    imu_data.ang_v.y -= offset.ang_v.y;
-    imu_data.ang_v.z -= offset.ang_v.z;
+    // imu_data.accel.x -= offset.accel.x;
+    // imu_data.accel.y -= offset.accel.y;
+    // imu_data.accel.z -= offset.accel.z;
+    // imu_data.del_v.x -= offset.del_v.x;
+    // imu_data.del_v.y -= offset.del_v.y;
+    // imu_data.del_v.z -= offset.del_v.z;
+    // imu_data.ang_v.x -= offset.ang_v.x;
+    // imu_data.ang_v.y -= offset.ang_v.y;
+    // imu_data.ang_v.z -= offset.ang_v.z;
     
     // Prints out if data is NaN
     // if (isnan(imu_data.heading.x))
@@ -211,15 +211,79 @@ bool check_byte_offset()
     return byte_offsets_found;
 }
 
-// Write data to imu_data struct, requires find_byte_offset to be run first \return imu_data_t object with parsed data
+// Write data to imu_data struct
 void parse_msg(imu_data_t &imu_data)
 {
-    conv_to_float(heading_byte_offset, imu_data.heading);
-    conv_to_float(accel_byte_offset, imu_data.accel);
-    conv_to_float(del_v_byte_offset, imu_data.del_v);
-    conv_to_float(ang_v_byte_offset, imu_data.ang_v);
+    if(!check_sum())
+    {
+        cout << "check sum fail" << endl;
+    }
+
+    int data_len = buf[1] - 1;
+
+    for (int i = 2; i < data_len; ++i)
+    {
+        if (buf[i] == 0x50 && buf[i+1] == 0x40 && buf[i+2] == 0x08) // XDI_LatLon 100 Hz
+        {
+            parse_float(imu_data.gps.lat, i + 3);
+            parse_float(imu_data.gps.lon, i + 7);
+        }
+        else if (buf[i] == 0x50 && buf[i+1] == 0x20 && buf[i+2] == 0x04) // XDI_AltitudeEllipsoid 100 Hz
+        {
+            parse_float(imu_data.alt, i + 3);
+        }
+        else if (buf[i] == 0xD0 && buf[i+1] == 0x10 && buf[i+2] == 0x0C) // XDI_VelocityXYZ 100 Hz
+        {
+            parse_float(imu_data.velocity.x, i + 3);
+            parse_float(imu_data.velocity.y, i + 7);
+            parse_float(imu_data.velocity.z, i + 11);
+        }
+        else if (buf[i] == 0x80 && buf[i+1] == 0x20 && buf[i+2] == 0x0C) //XDI_RateOfTurn 100 Hz
+        {
+            parse_float(imu_data.heading.x, i + 3);
+            parse_float(imu_data.heading.y, i + 7);
+            parse_float(imu_data.heading.z, i + 11);
+        }
+        else if (buf[i] == 0x20 && buf[i+1] == 0x30 && buf[i+2] == 0x0C) // XDI_EulerAngles 100 Hz
+        {
+            parse_float(imu_data.ang_v.x, i + 3);
+            parse_float(imu_data.ang_v.y, i + 7);
+            parse_float(imu_data.ang_v.z, i + 11);
+        } 
+    }
 
     return;
+}
+
+// parses buf[] for the num at the num_offset
+void parse_float(float &num, int num_offset)
+{
+    unsigned char arr[4] = {0,0,0,0};
+
+    arr[3] = buf[num_offset];
+    arr[2] = buf[num_offset + 1];
+    arr[1] = buf[num_offset + 2];
+    arr[0] = buf[num_offset + 3];
+
+    num = *(float*)&arr;
+}
+
+// checks the checksum byte to confirm valid message
+bool check_sum()
+{
+    unsigned char sum = 0xFF;
+    for (int i = 1; i < buf.size() - 1; ++i)
+    {
+        sum += buf[i];
+    }
+
+    sum = (~sum) + 1;
+
+    if (sum != buf[buf.size() - 1])
+    {
+        return false;
+    }
+    return true;
 }
 
 // Converts set of data to floats to be stored in axes_t struct
@@ -283,37 +347,37 @@ inline void set_offset(imu_data_t &_offset)
 }
 
 // 
-void imu_moving_avg_calibrate(map<int, imu_data_t> &data_set)
-{
-    imu_data_t imu_data;
+// void imu_moving_avg_calibrate(map<int, imu_data_t> &data_set)
+// {
+//     imu_data_t imu_data;
 
-    for (auto it = data_set.begin(); it != data_set.end(); ++it)
-    {
-        imu_data.accel.x += it->second.accel.x;
-        imu_data.accel.y += it->second.accel.y;
-        imu_data.accel.z += it->second.accel.z;
-        imu_data.del_v.x += it->second.del_v.x;
-        imu_data.del_v.y += it->second.del_v.y;
-        imu_data.del_v.z += it->second.del_v.z;
-        imu_data.ang_v.x += it->second.ang_v.x;
-        imu_data.ang_v.y += it->second.ang_v.y;
-        imu_data.ang_v.z += it->second.ang_v.z;
-    }
+//     for (auto it = data_set.begin(); it != data_set.end(); ++it)
+//     {
+//         imu_data.accel.x += it->second.accel.x;
+//         imu_data.accel.y += it->second.accel.y;
+//         imu_data.accel.z += it->second.accel.z;
+//         imu_data.del_v.x += it->second.del_v.x;
+//         imu_data.del_v.y += it->second.del_v.y;
+//         imu_data.del_v.z += it->second.del_v.z;
+//         imu_data.ang_v.x += it->second.ang_v.x;
+//         imu_data.ang_v.y += it->second.ang_v.y;
+//         imu_data.ang_v.z += it->second.ang_v.z;
+//     }
 
-    imu_data.accel.x /= data_set.size();
-    imu_data.accel.y /= data_set.size();
-    imu_data.accel.z /= data_set.size();
-    imu_data.del_v.x /= data_set.size();
-    imu_data.del_v.y /= data_set.size();
-    imu_data.del_v.z /= data_set.size();
-    imu_data.ang_v.x /= data_set.size();
-    imu_data.ang_v.y /= data_set.size();
-    imu_data.ang_v.z /= data_set.size();
+//     imu_data.accel.x /= data_set.size();
+//     imu_data.accel.y /= data_set.size();
+//     imu_data.accel.z /= data_set.size();
+//     imu_data.del_v.x /= data_set.size();
+//     imu_data.del_v.y /= data_set.size();
+//     imu_data.del_v.z /= data_set.size();
+//     imu_data.ang_v.x /= data_set.size();
+//     imu_data.ang_v.y /= data_set.size();
+//     imu_data.ang_v.z /= data_set.size();
 
-    set_offset(imu_data);
+//     set_offset(imu_data);
 
-    return;
-}
+//     return;
+// }
 
 // IN PROGRESS, MAY NOT WORK CORRECTLY!!! Reads continuously up to 1 second for a message from the specified opcode and writes the message of specified length to buf \return Time taken to receive message, -1 if no message received
 // int continuous_read(vector<unsigned char> *data, unsigned char opcode)
