@@ -23,8 +23,15 @@ using namespace std;
 
 struct imu_data_t
 {
-    axes_t accel;
-    axes_t del_v;
+    struct gps_t
+    {
+        float lat;
+        float lon;
+    } gps;
+
+    float alt;
+
+    axes_t velocity;
     axes_t ang_v;
     axes_t heading;
 };
@@ -34,11 +41,13 @@ bool go_to_config();
 bool go_to_measurement();
 imu_data_t imu_read_data();
 void parse_msg(imu_data_t &imu_data);
+void parse_float(float &num, int num_offset);
 void byte_offset();
 void find_byte_offset();
 bool check_byte_offset();
 void conv_to_float(const int &byte_offset, axes_t &axes);
 bool send_xbus_msg(vector<unsigned char> cmd);
+bool check_sum();
 // int continuous_read(vector<unsigned char> *buf, unsigned char opcode);
 inline void set_offset(imu_data_t &offset);
-void imu_moving_avg_calibrate(map<int, imu_data_t> &data_set);
+// void imu_moving_avg_calibrate(map<int, imu_data_t> &data_set);
