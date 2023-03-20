@@ -39,7 +39,13 @@ motor_cmd_t controller::control_loop(float x_setpoint, float y_setpoint, float z
 
     float roll_cmd = roll.compute_PID(roll_setpoint, state.imu_data.heading.x);
     float pitch_cmd = pitch.compute_PID(pitch_setpoint, state.imu_data.heading.y);
-    float yaw_cmd = yaw.compute_PID(yaw_setpoint, state.imu_data.heading.z); // How do we make the yaw take the shortest path to target? Ex: state -179' target +179', we want it to go -2', not +358'.
+
+    float yaw_error = yaw_setpoint - state.imu_data.heading.z;
+    if (yaw_error > 180)
+    {
+        yaw_error = -(360 - yaw_error);
+    }
+    float yaw_cmd = yaw.compute_PID(yaw_error); // How do we make the yaw take the shortest path to target? Ex: state -179' target +179', we want it to go -2', not +358'.
                                                                              // Possible solutions: give it the distance to yaw_setpoint instead of setpoint itself. Ex: Pass in -2' instead of +179'
                                                                              // We would need to potentially write a thing to make sure the yaw wraps around correctly? (maybe not though)
     float throttle_cmd = throttle.compute_PID(z_setpoint, state.altitude);

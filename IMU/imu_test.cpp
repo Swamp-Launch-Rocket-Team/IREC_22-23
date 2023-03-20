@@ -71,13 +71,12 @@ void print_data(const vector<unsigned char> &data)
 
 void print_all(imu_data_t *imu_data)
 {
-    printf("Heading: %.4f \t %.4f \t %.4f \t", // \t %.4f \t Accel: %.4f \t %.4f \t %.4f \t      ", // Ang v: %.4f | %.4f | %.4f ||\t Del v: %.4f | %.4f | %.4f ||\n",
-        imu_data->heading.x,imu_data->heading.y,imu_data->heading.z);
-        // imu_data->accel.x); imu_data->accel.y,imu_data->accel.z);
-        // imu_data->ang_v.x,imu_data->ang_v.y,imu_data->ang_v.z,
-        // imu_data->del_v.x,imu_data->del_v.y,imu_data->del_v.z);
+    printf("Heading: %.4f\t%.4f\t%.4f\tGPS: %.4f\t%.4f\tAlt: %.4f\t\n",
+        imu_data->heading.x,imu_data->heading.y,imu_data->heading.z,
+        imu_data->gps.lat, imu_data->gps.lon,
+        imu_data->alt);
 
     usleep(10000);
 
-    cout << "\r" << flush;
+    // cout << flush;
 }

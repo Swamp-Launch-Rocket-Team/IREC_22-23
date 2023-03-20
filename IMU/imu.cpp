@@ -26,7 +26,11 @@ int imu_init(int address)
         return -1;
     }
 
+<<<<<<< Updated upstream
     // byte_offset();
+=======
+    //byte_offset();
+>>>>>>> Stashed changes
 
     return file;
 }
@@ -143,6 +147,7 @@ void find_byte_offset()
     }
 
     data_len = buf[1] + 3;
+    cout << "Data length: " << data_len << endl;
 
     if (data_len == 0)
     {
@@ -162,22 +167,22 @@ void find_byte_offset()
 
     for (int i = 2; i < data_len; ++i)
     {
-        if (buf[i] == 0x20 && buf[i+1] == 0x30 && buf[i+2] == 0x0C)
-        {
-            heading_byte_offset = i + 3;
-        }
-        else if (buf[i] == 0x40 && buf[i+1] == 0x30 && buf[i+2] == 0x0C)
-        {
-            accel_byte_offset = i + 3;
-        }
-        else if (buf[i] == 0x80 && buf[i+1] == 0x20 && buf[i+2] == 0x0C)
-        {
-            ang_v_byte_offset = i + 3;
-        }
-        else if (buf[i] == 0x40 && buf[i+1] == 0x10 && buf[i+2] == 0x0C)
-        {
-            del_v_byte_offset = i + 3;
-        }
+        //if (buf[i] == 0x20 && buf[i+1] == 0x30 && buf[i+2] == 0x0C)
+        //{
+        //    heading_byte_offset = i + 3;
+        //}
+        //else if (buf[i] == 0x40 && buf[i+1] == 0x30 && buf[i+2] == 0x0C)
+        //{
+        //    accel_byte_offset = i + 3;
+        //}
+        //else if (buf[i] == 0x80 && buf[i+1] == 0x20 && buf[i+2] == 0x0C)
+        //{
+        //    ang_v_byte_offset = i + 3;
+        //}
+        //else if (buf[i] == 0x40 && buf[i+1] == 0x10 && buf[i+2] == 0x0C)
+        //{
+        //    del_v_byte_offset = i + 3;
+        //}
     }
 }
 
@@ -220,6 +225,10 @@ void parse_msg(imu_data_t &imu_data)
     }
 
     int data_len = buf[1] - 1;
+<<<<<<< Updated upstream
+=======
+    cout << "data length: " << data_len << "\t";
+>>>>>>> Stashed changes
 
     for (int i = 2; i < data_len; ++i)
     {
@@ -240,16 +249,28 @@ void parse_msg(imu_data_t &imu_data)
         }
         else if (buf[i] == 0x80 && buf[i+1] == 0x20 && buf[i+2] == 0x0C) //XDI_RateOfTurn 100 Hz
         {
+<<<<<<< Updated upstream
+=======
+            parse_float(imu_data.ang_v.x, i + 3);
+            parse_float(imu_data.ang_v.y, i + 7);
+            parse_float(imu_data.ang_v.z, i + 11);
+        }
+        else if (buf[i] == 0x20 && buf[i+1] == 0x30 && buf[i+2] == 0x0C) // XDI_EulerAngles 100 Hz
+        {
+>>>>>>> Stashed changes
             parse_float(imu_data.heading.x, i + 3);
             parse_float(imu_data.heading.y, i + 7);
             parse_float(imu_data.heading.z, i + 11);
         }
+<<<<<<< Updated upstream
         else if (buf[i] == 0x20 && buf[i+1] == 0x30 && buf[i+2] == 0x0C) // XDI_EulerAngles 100 Hz
         {
             parse_float(imu_data.ang_v.x, i + 3);
             parse_float(imu_data.ang_v.y, i + 7);
             parse_float(imu_data.ang_v.z, i + 11);
         } 
+=======
+>>>>>>> Stashed changes
     }
 
     return;
@@ -272,16 +293,27 @@ void parse_float(float &num, int num_offset)
 bool check_sum()
 {
     unsigned char sum = 0xFF;
+<<<<<<< Updated upstream
     for (int i = 1; i < buf.size() - 1; ++i)
+=======
+    for (int i = 0; i < buf.size(); ++i)
+>>>>>>> Stashed changes
     {
         sum += buf[i];
     }
 
+<<<<<<< Updated upstream
     sum = (~sum) + 1;
 
     if (sum != buf[buf.size() - 1])
     {
         return false;
+=======
+    if (sum != 0x00)
+    {
+        cout << "Calc sum: " << hex << (int)(sum) << " ";
+	return false;
+>>>>>>> Stashed changes
     }
     return true;
 }
@@ -328,11 +360,59 @@ bool send_xbus_msg(vector<unsigned char> cmd)
     checksum = (~checksum) + 1;
 
     cmd.push_back(checksum);
-
-    if (write(file, &cmd[0], cmd.size()) != cmd.size())
+    vector<unsigned char> ack;
+    ack.resize(60);
+    unsigned char temp = 0x05;
+    unsigned char meas = 0x06;
+    //if (write(file, &temp, 1) != 1 || read(file,&ack[0],ack.size()) != ack.size())
+    //{
+//	cout << "Clear buf fail" << endl;
+  //  }
+    //int count = 0;
+    //while (ack[0] != 0x00)
+    //{
+//	if (write(file,&temp,1) != 1);
+  //      {
+//	    cout << "write" << endl;
+//	    break;
+//	}
+//	if (read(file,&ack[0],ack.size()) != ack.size())
+//	{
+//	    cout << "read" << endl;
+//	    break;
+//	}
+//	if (count > 1000)
+//	{
+//	    cout << "count too big" << endl;
+//	    break;
+//	}
+  //  }
+    //cout << "Count: " << count << endl;
+    if (write(file, &cmd[0], cmd.size()) != cmd.size())// || read(file,&ack[0],ack.size()) != ack.size())
     {
         cout << "Error writing xbus command to I2C device" << endl;
         return false;
+    }
+    
+    if (write(file, &temp, 1) != 1 || read(file,&ack[0],ack.size()) != ack.size())
+    {
+	cout << "Error reading notif pipe" << endl;
+    }
+
+    for (int i = 0; i < ack.size(); ++i)
+    {
+	cout << hex << (int)ack[i] << " ";
+    }
+
+    temp = 0x04;
+    if (write(file, &temp, 1) != 1 || read(file,&ack[0],ack.size()) != ack.size())
+    {
+	cout << "Error reading pipe status" << endl;
+    }
+    cout << endl;
+    for (int i = 0; i < ack.size(); ++i)
+    {
+	cout << hex << (int)ack[i] << " ";
     }
 
     return true;

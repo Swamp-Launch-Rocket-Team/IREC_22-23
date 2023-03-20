@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <queue>
 
 class PID
 {
@@ -13,6 +14,7 @@ class PID
         } gains;
 
         float integral;
+        queue<float> moving_int;
         float prev_error;
         std::chrono::high_resolution_clock::time_point prev_time;
 
@@ -25,4 +27,5 @@ class PID
         float get_kd();
         float get_prev_error();
         float compute_PID(float setpoint, float currentpoint);
+        float compute_PID(float error);
 };

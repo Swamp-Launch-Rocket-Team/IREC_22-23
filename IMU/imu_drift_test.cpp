@@ -3,7 +3,7 @@
 #include <fstream>
 #include <map>
 
-void write_data(ofstream &out_file, imu_data_t::axes_t &imu_data);
+void write_data(ofstream &out_file, axes_t &imu_data);
 void print_data(unsigned char data[], int len);
 void print_data(const vector<unsigned char> &data);
 void print_all(imu_data_t &imu_data);
@@ -23,14 +23,14 @@ int main()
     map<int,imu_data_t> data_map;
 
     auto cur_time = chrono::high_resolution_clock::now();
-    auto loop_time = chrono::high_resolution_clock::now();
+    //auto loop_time = chrono::high_resolution_clock::now();
     auto start = chrono::high_resolution_clock::now();
 
     int i = 1;
 
-    while (chrono::duration_cast<chrono::minutes>(cur_time - start).count() < 60)
-    {        
-        loop_time = chrono::high_resolution_clock::now();
+    while (chrono::duration_cast<chrono::minutes>(cur_time - start).count() < 15)
+    {
+        //loop_time = chrono::high_resolution_clock::now();
 
         imu_data = imu_read_data();
 
@@ -40,14 +40,14 @@ int main()
 
         cur_time = chrono::high_resolution_clock::now();
 
-        if (!(chrono::duration_cast<chrono::microseconds>(cur_time - loop_time).count() > 10000))
-        {
-            usleep(10000 - chrono::duration_cast<chrono::microseconds>(cur_time - loop_time).count());
-        }
-        else
-        {
-            cout << "Time exceeds 10 ms: " << i << " " << chrono::duration_cast<chrono::milliseconds>(cur_time - loop_time).count() << endl;
-        }
+        //if (!(chrono::duration_cast<chrono::microseconds>(cur_time - loop_time).count() > 10000))
+        //{
+        //    usleep(10000 - chrono::duration_cast<chrono::microseconds>(cur_time - loop_time).count());
+        //}
+        //else
+        //{
+        //    cout << "Time exceeds 10 ms: " << i << " " << chrono::duration_cast<chrono::milliseconds>(cur_time - loop_time).count() << endl;
+        //}
 
         cout << chrono::duration_cast<chrono::seconds>(cur_time - start).count();
 
@@ -79,7 +79,7 @@ int main()
     return 0;
 }
 
-void write_data(ofstream &out_file, imu_data_t::axes_t &imu_data)
+void write_data(ofstream &out_file, axes_t &imu_data)
 {
     out_file << imu_data.x << "," << imu_data.y << "," << imu_data.z;
 }
