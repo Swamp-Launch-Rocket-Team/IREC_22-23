@@ -59,5 +59,30 @@ See `gpio readall` for pinout or refer to the following image.
 
 [libcamera](https://www.raspberrypi.com/documentation/computers/camera_software.html)
 
-[Ulimate GPS on RPi](https://learn.adafruit.com/adafruit-ultimate-gps-on-the-raspberry-pi/introduction)
+[Ultimate GPS on RPi](https://learn.adafruit.com/adafruit-ultimate-gps-on-the-raspberry-pi/introduction)
 
+## TODO
+- Change IMU data to include rotation matrix
+- Write camera code
+  - python script to take pic every ~5 seconds and write to file?
+- Write gps code
+- Investigate delta V "breathing" problem
+- Edit controller to use state velocity
+  - Make sure nothing else in the controller is dependent on initial conditions/unknowns
+- Test controller loop timing
+
+- Kalman filter????
+- Tune controllers with prototype
+- Write autonomous navigation code
+- Write main
+  - Detect launch (use data from Feb. launch?)
+  - Calibrate imu from pre-launch data
+  - Init required sensors/processes
+  - Release checklist
+    - IMU?
+    - barometer
+    - Radio connection
+    - Dshot init?
+  - Activate DC motors to release drone from container/parachute
+  - XBee communication
+  - Slow descent with ultrasonic data
