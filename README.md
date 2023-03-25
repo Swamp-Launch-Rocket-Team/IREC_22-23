@@ -32,6 +32,7 @@ This may need to be different (300k seems to be better for the Pi 4)
 
 ## Wiring
 See `gpio readall` for pinout or refer to the following image.
+SD slot is oriented at the top.
 ![](https://pi4j.com/1.2/images/j8header-zero-large.png)
 
 ## Remote Development via SSH
@@ -49,7 +50,7 @@ See `gpio readall` for pinout or refer to the following image.
 ## Datasheets
 [HC-SR04 Ultrasonic Ranging Module](https://cdn.sparkfun.com/datasheets/Sensors/Proximity/HCSR04.pdf)
 
-[MTi-3 IMU](https://www.xsens.com/hubfs/Downloads/Manuals/MTi-1-series-datasheet.pdf)
+[MTi-1 Series IMU](https://mtidocs.xsens.com/mti-1-series)
 
 [MTi Low-Level Documentation](https://www.xsens.com/hubfs/Downloads/Manuals/MT_Low-Level_Documentation.pdf)
 
@@ -62,16 +63,10 @@ See `gpio readall` for pinout or refer to the following image.
 [Ultimate GPS on RPi](https://learn.adafruit.com/adafruit-ultimate-gps-on-the-raspberry-pi/introduction)
 
 ## TODO
-- Change IMU data to include rotation matrix
 - Write camera code
   - python script to take pic every ~5 seconds and write to file?
-- Write gps code
-- Investigate delta V "breathing" problem
-- Edit controller to use state velocity
-  - Make sure nothing else in the controller is dependent on initial conditions/unknowns
 - Test controller loop timing
 
-- Kalman filter????
 - Tune controllers with prototype
 - Write autonomous navigation code
 - Write main
