@@ -92,6 +92,8 @@ imu_data_t imu_read_data()
     //     cout << endl;
     // }
 
+    imu_data = rotate_axes(imu_data);
+
     return imu_data;
 }
 
@@ -170,33 +172,23 @@ bool check_sum()
     return true;
 }
 
-// Converts set of data to floats to be stored in axes_t struct
-void conv_to_float(const int &byte_offset, axes_t &axes) 
+// Rotate the axes such that the axes align with the drone's coordinate system
+imu_data_t rotate_axes(imu_data_t old_axes)
 {
-    unsigned char parse_array[4] = {0,0,0,0};
+    imu_data_t new_axes = old_axes;
+    // Drone X = -IMU Y
+    // Drone Y =  IMU X
+    // Drone Z =  IMU Z
+    new_axes.heading.x = -old_axes.heading.y;
+    new_axes.heading.y = old_axes.heading.x;
+    
+    new_axes.velocity.x = -old_axes.velocity.y;
+    new_axes.velocity.y = old_axes.velocity.x;
 
-    parse_array[3] = buf[byte_offset];
-    parse_array[2] = buf[byte_offset + 1];
-    parse_array[1] = buf[byte_offset + 2];
-    parse_array[0] = buf[byte_offset + 3];
+    new_axes.ang_v.x = -old_axes.ang_v.y;
+    new_axes.ang_v.y = old_axes.ang_v.x;
 
-    axes.x = *(float*)&parse_array;
-
-    parse_array[3] = buf[byte_offset + 4];
-    parse_array[2] = buf[byte_offset + 5];
-    parse_array[1] = buf[byte_offset + 6];
-    parse_array[0] = buf[byte_offset + 7];
-
-    axes.y = *(float*)&parse_array;
-
-    parse_array[3] = buf[byte_offset + 8];
-    parse_array[2] = buf[byte_offset + 9];
-    parse_array[1] = buf[byte_offset + 10];
-    parse_array[0] = buf[byte_offset + 11];
-
-    axes.z = *(float*)&parse_array;
-
-    return;
+    return new_axes;
 }
 
 // Takes cmd without checksum, calculates checksum and sends message to IMU

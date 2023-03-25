@@ -1,7 +1,7 @@
 default: imu_test
 
-imu_test: imu.cpp imu.h imu_test.cpp
-	c++ -std=c++11 -g -o imu_test imu_test.cpp imu.cpp
+imu_test: imu.cpp imu.h imu_test.cpp ../DShot/busynano/busynano.cpp ../DShot/busynano/busynano.h
+	c++ -std=c++11 -g -o imu_test imu_test.cpp imu.cpp ../DShot/busynano/busynano.cpp
 
 drift_test: imu.cpp imu.h imu_drift_test.cpp
 	c++ -std=c++11 -g -o drift_test imu_drift_test.cpp imu.cpp
