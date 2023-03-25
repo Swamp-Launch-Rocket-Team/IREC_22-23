@@ -68,6 +68,17 @@ imu_data_t imu_read_data()
         return imu_data;
     }
 
+    while (!check_sum())
+    {
+        // cout << "check sum fail" << endl;
+        busy10ns(150000);
+        if (write(file, &READ_DATA, 1) != 1 || read(file, &buf[0], buf.size()) != buf.size())
+        {
+            cout << "Error writing/reading from I2C device" << endl;
+            return imu_data;
+        }
+    }
+
     parse_msg(imu_data);
 
     // Prints out if data is NaN
@@ -87,13 +98,8 @@ imu_data_t imu_read_data()
 // Write data to imu_data struct
 void parse_msg(imu_data_t &imu_data)
 {
-    if(!check_sum())
-    {
-        cout << "check sum fail" << endl;
-    }
 
     int data_len = buf[1];
-    cout << "data length: " << data_len << "\t";
 
     for (int i = 2; i < data_len; ++i)
     {
@@ -154,11 +160,11 @@ bool check_sum()
 
     if (sum != 0x00)
     {
-        for(int x : buf)
-        {
-            cout << hex << x << " ";
-        }
-        cout << "\nCalc sum: " << hex << (int)(sum) << " ";
+        // for(int x : buf)
+        // {
+        //     cout << hex << x << " ";
+        // }
+        // cout << "\nCalc sum: " << hex << (int)(sum) << " ";
 	    return false;
     }
     return true;

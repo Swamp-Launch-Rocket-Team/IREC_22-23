@@ -10,6 +10,7 @@
 #include <cmath>
 #include <map>
 #include "axes.h"
+#include "../DShot/busynano/busynano.h"
 
 // Opcodes
 #define PRTCL_INFO 0x01

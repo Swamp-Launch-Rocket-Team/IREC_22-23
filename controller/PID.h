@@ -3,6 +3,8 @@
 #include <chrono>
 #include <queue>
 
+using namespace std;
+
 class PID
 {
     private:
@@ -16,7 +18,7 @@ class PID
         float integral;
         queue<float> moving_int;
         float prev_error;
-        std::chrono::high_resolution_clock::time_point prev_time;
+        chrono::high_resolution_clock::time_point prev_time;
 
     public:
         PID();

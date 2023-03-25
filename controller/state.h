@@ -8,17 +8,8 @@
 struct state_t
 {
     imu_data_t imu_data;
-
-    axes_t velocity;
-
-    // GPS DATA
-    struct GPS_t
-    {
-        float x;
-        float y;
-    } gps;
     
-    float altitude;
+    float ultra_alt = -1;
 };
 
 #endif

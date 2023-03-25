@@ -14,6 +14,14 @@ struct motor_cmd_t
     int motor_4;
 };
 
+struct setpoint_t
+{
+    float x;
+    float y;
+    float z;
+    float yaw;
+};
+
 // Controller class, stores PID loop for each controller
 class controller
 {
@@ -29,6 +37,6 @@ class controller
         controller();
         controller(std::string filename);
         // ~controller();
-        motor_cmd_t control_loop(float x_setpoint, float y_setpoint, float z_setpoint, float yaw_setpoint, state_t &state);
+        motor_cmd_t control_loop(setpoint_t &setpoint, state_t &state);
 
 };

@@ -8,12 +8,12 @@ void print_all(imu_data_t *imu_data);
 int main()
 {
     // Set up variables for the I2C device address, file descriptor, and data buffer
-    int address = 0x6B;
     int file;
     unsigned char data[40];
 
     imu_data_t imu_data;
 
+    int address = 0x6B;
     file = imu_init(address);
 
     // unsigned char test[19] = {CNTRL_PIPE,0xC0,0x10,0x20,0x30,0x00,0x64,0x40,0x30,0x00,0x64,0x80,0x20,0x00,0x64,0x40,0x10,0x00,0x64}; // set config
