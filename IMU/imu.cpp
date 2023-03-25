@@ -8,7 +8,7 @@ static int del_v_byte_offset = 0; // Delta V data offset from start of messages 
 static vector<unsigned char> buf; // Buffer where received data is stored
 
 // Initializes IMU file and sets I2C slave
-int imu_init(int address)    
+int imu_init(int address)
 {
     // Open the I2C device file
     if ((file = open("/dev/i2c-1", O_RDWR)) < 0)
@@ -175,18 +175,29 @@ bool check_sum()
 // Rotate the axes such that the axes align with the drone's coordinate system
 imu_data_t rotate_axes(imu_data_t old_axes)
 {
-    imu_data_t new_axes = old_axes;
-    // Drone X = -IMU Y
-    // Drone Y =  IMU X
-    // Drone Z =  IMU Z
-    new_axes.heading.x = -old_axes.heading.y;
-    new_axes.heading.y = old_axes.heading.x;
-    
-    new_axes.velocity.x = -old_axes.velocity.y;
-    new_axes.velocity.y = old_axes.velocity.x;
+    imu_data_t new_axes = old_axes; // THIS IS WRONG BECAUSE WE ARE DUMB
+    // // Drone X = -IMU Y
+    // // Drone Y =  IMU X
+    // // Drone Z =  IMU Z
+    // new_axes.heading.x = -old_axes.heading.y;
+    // new_axes.heading.y = old_axes.heading.x;
 
-    new_axes.ang_v.x = -old_axes.ang_v.y;
-    new_axes.ang_v.y = old_axes.ang_v.x;
+    // new_axes.velocity.x = -old_axes.velocity.y;
+    // new_axes.velocity.y = old_axes.velocity.x;
+
+    // new_axes.ang_v.x = -old_axes.ang_v.y;
+    // new_axes.ang_v.y = old_axes.ang_v.x;
+
+    // BELOW IS FOR THE PROTOTYPE
+
+    new_axes.heading.y = -old_axes.heading.y;
+    new_axes.heading.z = -old_axes.heading.z;
+
+    new_axes.velocity.y = -old_axes.velocity.y;
+    new_axes.velocity.z = -old_axes.velocity.z;
+
+    new_axes.ang_v.y = -old_axes.ang_v.y;
+    new_axes.ang_v.z = -old_axes.ang_v.z;
 
     return new_axes;
 }
@@ -237,7 +248,7 @@ bool send_xbus_msg(vector<unsigned char> cmd)
         cout << "Error writing xbus command to I2C device" << endl;
         return false;
     }
-    
+
     if (write(file, &temp, 1) != 1 || read(file,&ack[0],ack.size()) != ack.size())
     {
 	cout << "Error reading notif pipe" << endl;
@@ -266,14 +277,14 @@ bool send_xbus_msg(vector<unsigned char> cmd)
 // int continuous_read(vector<unsigned char> *data, unsigned char opcode)
 // {
 //     vector<unsigned char> temp = *data;
-    
+
 //     auto start = chrono::high_resolution_clock::now();
 //     auto current = chrono::high_resolution_clock::now();
 //     auto duration = chrono::duration_cast<chrono::milliseconds>(current - start);
 
 //     while (duration.count() < 1000)
 //     {
-        
+
 
 //     if ((write(file, &opcode, 1) == 1 || read(file, &data[0], data->size()) == data->size()) && temp != *data)
 //     {

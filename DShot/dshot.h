@@ -17,7 +17,7 @@ class Dshot {
 	static std::pair<long, long> dshot_timings[2];
 
 public:
-	typedef enum 
+	typedef enum
 	{
 		DSHOT150,
 		DSHOT300,
@@ -31,9 +31,9 @@ public:
 
 	static void set_speed_standard(dshot_standard_t standard);
 
-	void send(uint16_t command);
+	void send(int16_t command);
 
-	void throttle(uint16_t throttle);
+	void throttle(int16_t throttle);
 
 	void send_bit(bool value);
 

@@ -44,7 +44,7 @@ void Dshot::set_speed_standard(dshot_standard_t standard)
 	dshot_timings[0].second = bit_length - dshot_timings[0].first;
 }
 
-void Dshot::send(uint16_t command)
+void Dshot::send(int16_t command)
 {
 	// Error if not initialized
 	if(!dshot_timings[0].first)
@@ -58,10 +58,10 @@ void Dshot::send(uint16_t command)
 	}
 
 	// Append telemetry request bit
-	uint16_t message = command << 1;
+	int16_t message = command << 1;
 
 	// Append cyclic redundancy check (CRC)
-	uint8_t crc = (message ^ (message >> 4) ^ (message >> 8)) & 0x0F;
+	int8_t crc = (message ^ (message >> 4) ^ (message >> 8)) & 0x0F;
 
 	message = message << 4 | crc;
 
@@ -74,18 +74,22 @@ void Dshot::send(uint16_t command)
 	}
 }
 
-void Dshot::throttle(uint16_t throttle)
+void Dshot::throttle(int16_t throttle)
 {
 	// Max throttle is 1999
-	if(throttle > 1999)
+	if (throttle > 1999)
 	{
 		throttle = 1999;
+	}
+	else if (throttle < 0)
+	{
+		throttle = 0;
 	}
 
 	// Throttle ranges from 48-2047
 	throttle += 48;
 
-	send(throttle);	
+	send(throttle);
 }
 
 void Dshot::send_bit(bool value)
