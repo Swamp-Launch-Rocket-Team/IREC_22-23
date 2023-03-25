@@ -25,11 +25,11 @@ struct imu_data_t
 {
     struct gps_t
     {
-        float lat;
-        float lon;
+        float lat = -1;
+        float lon = -1;
     } gps;
 
-    float alt;
+    float alt = -1;
 
     axes_t velocity;
     axes_t ang_v;
