@@ -53,7 +53,7 @@ int main()
     {
         cur = chrono::high_resolution_clock::now();
         // Square Wave
-        if (chrono::duration_cast<chrono::seconds>(cur - start).count() % 10 <= 5)
+        if (chrono::duration_cast<chrono::milliseconds>(cur - start).count() % 10000 <= 5000)
         {
             setpoint.x = 20; // degrees
         }
@@ -71,6 +71,16 @@ int main()
         // else
         // {
         //     setpoint.x = -180 - setpoint.x;
+        // }
+
+        // Integral Wind-Up Test
+        // if (chrono::duration_cast<chrono::milliseconds>(cur - start).count() <= 50000)
+        // {
+        //     setpoint.x = 20; // degrees
+        // }
+        // else
+        // {
+        //     setpoint.x = -20; // degrees
         // }
 
 

@@ -22,10 +22,6 @@ PID::PID(float kp, float ki, float kd)
 
     integral = 0;
     prev_error = 0;
-    for (int i = 0; i < 2000; ++i)
-    {
-        moving_int.push(0);
-    }
 
     prev_time = chrono::high_resolution_clock::now();
 }
@@ -62,10 +58,7 @@ float PID::compute_PID(float setpoint, float currentpoint)
 
     float P = gains.kp * cur_error;
 
-    integral -= moving_int.front();
-    moving_int.pop();
-    moving_int.push(cur_error * dt);
-    integral += moving_int.back();
+    integral += cur_error * dt;
 
     float I = gains.ki * integral;
 
@@ -86,10 +79,7 @@ float PID::compute_PID(float error)
 
     float P = gains.kp * error;
 
-    integral -= moving_int.front();
-    moving_int.pop();
-    moving_int.push(error * dt);
-    integral += moving_int.back();
+    integral += error * dt;
 
     float I = gains.ki * integral;
 
