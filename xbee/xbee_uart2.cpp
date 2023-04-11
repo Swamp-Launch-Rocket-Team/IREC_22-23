@@ -2,8 +2,16 @@
 // Swamp Launch Rocket Team
 // XBee UART interface
 // 2/7/2023
-
-class XBee()
+#include "xbee_uart2.h"
+#include <fstream>
+#include <sstream>
+#include <stdio.h>
+#include <string.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
+#include <termios.h>
+/*class XBee()
 {
 	private:
 		int serial_port;
@@ -12,17 +20,17 @@ class XBee()
 		XBee();
 		~XBee;
 		void XBee::transmit(char[] msg);
-		string XBee::read();
-}
+		string XBee::read()
+}*/
 
-void XBee::Xbee()
+XBee::XBee()
 {
-	// UART setup source:
+	// UART setup source:l
 	// https://medium.com/geekculture/raspberry-pi-c-libraries-for-working-with-i2c-spi-and-uart-4677f401b584
 	serial_port = open("/dev/ttyUSB0", O_RDWR);
 	if(tcgetattr(serial_port, &tty) != 0) {
 		printf("Error %i from tcgetattr: %s\n", errno, strerror(errno));
-		return 1;
+		return;
 	}
 	
 	// UART Configuration flags
@@ -52,11 +60,11 @@ void XBee::Xbee()
 	if (tcsetattr(serial_port, TCSANOW, &tty) != 0) 
 	{
 		printf("Error %i from tcsetattr: %s\n", errno, strerror(errno));
-		return 1;
+		return;
 	}
 }
 
-void XBee::~XBee
+XBee::~XBee()
 {
 	close(serial_port);
 }
