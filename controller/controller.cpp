@@ -37,7 +37,7 @@ motor_cmd_t controller::control_loop(setpoint_t &setpoint, state_t &state)
     float roll_setpoint = y_pos.compute_PID(setpoint.y, rel_y); // should the setpoints be different? maybe not but also possibly
     // float pitch_setpoint = x_pos.compute_PID(setpoint.x, rel_x);
 
-    float pitch_setpoint = setpoint.x;
+    float pitch_setpoint = setpoint.y;
 
     float roll_error = roll_setpoint - state.imu_data.heading.x;
     float pitch_error = pitch_setpoint - state.imu_data.heading.y;
@@ -56,7 +56,7 @@ motor_cmd_t controller::control_loop(setpoint_t &setpoint, state_t &state)
     {
         pitch_error = -(360 - pitch_error);
     }
-    else if (roll_error < -180)
+    else if (pitch_error < -180)
     {
         pitch_error = 360 + pitch_error;
     }
@@ -84,10 +84,10 @@ motor_cmd_t controller::control_loop(setpoint_t &setpoint, state_t &state)
     // motor_cmd.motor_4 = round(throttle_cmd - roll_cmd - pitch_cmd + yaw_cmd); // back right
 
 
-    motor_cmd.motor_1 = round(pitch_cmd); // front left
-    motor_cmd.motor_2 = round(pitch_cmd); // front right
-    motor_cmd.motor_3 = round(- pitch_cmd); // back left
-    motor_cmd.motor_4 = round(- pitch_cmd); // back right
+    motor_cmd.motor_1 = round(- pitch_cmd); // front left
+    motor_cmd.motor_2 = round(- pitch_cmd); // front right
+    motor_cmd.motor_3 = round(pitch_cmd); // back left
+    motor_cmd.motor_4 = round(pitch_cmd); // back right
 
     if (motor_cmd.motor_1 < 0)
     {
@@ -106,10 +106,10 @@ motor_cmd_t controller::control_loop(setpoint_t &setpoint, state_t &state)
         motor_cmd.motor_4 = 0;
     }
 
-    motor_cmd.motor_1 += 100;
-    motor_cmd.motor_2 += 100;
-    motor_cmd.motor_3 += 100;
-    motor_cmd.motor_4 += 100;
+    motor_cmd.motor_1 += 50;
+    motor_cmd.motor_2 += 50;
+    motor_cmd.motor_3 += 50;
+    motor_cmd.motor_4 += 50;
 
     return motor_cmd;
 }

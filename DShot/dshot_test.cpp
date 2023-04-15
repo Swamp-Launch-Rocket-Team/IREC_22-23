@@ -9,10 +9,10 @@ int main(int argc, char* argv[])
 {
     // Initialization
     std::vector<Dshot> motors;
-    motors.emplace_back(26);
-    motors.emplace_back(27);
     motors.emplace_back(28);
     motors.emplace_back(29);
+    motors.emplace_back(26);
+    motors.emplace_back(27);
     Dshot::set_speed_standard(Dshot::DSHOT600);
     std::cout << "Press enter to sent startup command" << std::endl;
     std::string s;

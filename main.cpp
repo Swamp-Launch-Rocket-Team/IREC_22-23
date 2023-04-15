@@ -15,6 +15,12 @@ using namespace std;
 
 int main()
 {
+    // Turn off buzzer
+    wiringPiSetup();
+	pinMode(21, OUTPUT);
+    digitalWrite(21, LOW);
+
+
     // Initialize all subsystems
     // Initialize IMU
     int file;
@@ -23,10 +29,10 @@ int main()
 
     // Initialize Dshot
     vector<Dshot> motors;
-    motors.emplace_back(26);
-    motors.emplace_back(27);
     motors.emplace_back(28);
     motors.emplace_back(29);
+    motors.emplace_back(26);
+    motors.emplace_back(27);
     Dshot::set_speed_standard(Dshot::DSHOT600);
 
     state_t state; // Stores information of drone state
@@ -49,18 +55,18 @@ int main()
     auto cur = chrono::high_resolution_clock::now();
     list<pair<float, motor_cmd_t>> cmd_log;
     group_startup(motors);
-    while (chrono::duration_cast<chrono::seconds>(cur - start).count() < 60)
+    while (chrono::duration_cast<chrono::seconds>(cur - start).count() < 30)
     {
         cur = chrono::high_resolution_clock::now();
-        // Square Wave
-        if (chrono::duration_cast<chrono::milliseconds>(cur - start).count() % 10000 <= 5000)
-        {
-            setpoint.x = 20; // degrees
-        }
-        else
-        {
-            setpoint.x = -20; // degrees
-        }
+        // // Square Wave
+        // if (chrono::duration_cast<chrono::milliseconds>(cur - start).count() % 20000 <= 10000)
+        // {
+            setpoint.y = 180; // degrees
+        // }
+        // else
+        // {
+        //     setpoint.y = -160; // degrees
+        // }
 
         // Sine Wave
         // setpoint.x = 30 * sin(chrono::duration_cast<chrono::microseconds>(cur - start).count()/1000000.0);
@@ -93,7 +99,7 @@ int main()
         send_motor_cmds(motor_cmd, motors);
 
         data_log.push_back(make_pair(chrono::duration_cast<chrono::microseconds>(cur - start).count(), state));
-        cmd_log.push_back(make_pair(setpoint.x, motor_cmd));
+        cmd_log.push_back(make_pair(setpoint.y, motor_cmd));
 
         while (chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() < 9500);
     }

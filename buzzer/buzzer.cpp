@@ -26,8 +26,8 @@ void buzzer_long()
 {
     for(int i = 0; i < 3; i++)
     {
-        buzzer_length(500);
-        delay(500);
+        buzzer_length(1000);
+        delay(1000);
     }
 }
 
@@ -35,7 +35,7 @@ void buzzer_short()
 {
     for(int i = 0; i < 3; i++)
     {
-        buzzer_length(250);
-        delay(250);
+        buzzer_length(500);
+        delay(500);
     }
 }

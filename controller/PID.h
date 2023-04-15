@@ -15,8 +15,8 @@ class PID
             float kd;
         } gains;
 
-        float integral;
-        float prev_error;
+        float integral = 0;
+        float prev_error = 0;
         chrono::high_resolution_clock::time_point prev_time;
 
     public:

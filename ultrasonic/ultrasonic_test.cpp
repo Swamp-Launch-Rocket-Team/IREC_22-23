@@ -4,7 +4,7 @@
 
 int main()
 {
-    ultrasonic_init(8, 9);
+    ultrasonic_init(3, 2);
 
     while(true)
     {
