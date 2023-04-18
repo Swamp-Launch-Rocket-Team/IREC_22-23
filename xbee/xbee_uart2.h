@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include <termios>
+#include <termios.h>
 
 class XBee
 {
@@ -10,6 +10,7 @@ class XBee
 	public:
 		XBee();
 		~XBee();
-		void transmit(char[] msg);
-		std::string read();
-}
+		ssize_t transmit(std::string msg);
+		std::string receive();
+		std::string receive_line();
+};

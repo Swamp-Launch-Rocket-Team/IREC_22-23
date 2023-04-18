@@ -12,7 +12,7 @@ from digi.xbee.io import IOLine, IOMode
 import time
 import keyboard
 
-device = XBeeDevice("COM4", 9600)
+device = XBeeDevice("/dev/serial0", 9600)
 device.open()
 device.set_sync_ops_timeout(10)
 

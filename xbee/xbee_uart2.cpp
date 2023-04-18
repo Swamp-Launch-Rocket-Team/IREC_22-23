@@ -1,7 +1,8 @@
 // Dylan Ogrodowski
 // Swamp Launch Rocket Team
 // XBee UART interface
-// 2/7/2023
+
+#include <iostream>
 #include "xbee_uart2.h"
 #include <fstream>
 #include <sstream>
@@ -11,28 +12,17 @@
 #include <errno.h>
 #include <unistd.h>
 #include <termios.h>
-/*class XBee()
-{
-	private:
-		int serial_port;
-		struct termios tty; // ???
-	public:
-		XBee();
-		~XBee;
-		void XBee::transmit(char[] msg);
-		string XBee::read()
-}*/
 
 XBee::XBee()
 {
 	// UART setup source:l
 	// https://medium.com/geekculture/raspberry-pi-c-libraries-for-working-with-i2c-spi-and-uart-4677f401b584
-	serial_port = open("/dev/ttyUSB0", O_RDWR);
+	serial_port = open("/dev/serial0", O_RDWR);
 	if(tcgetattr(serial_port, &tty) != 0) {
 		printf("Error %i from tcgetattr: %s\n", errno, strerror(errno));
 		return;
 	}
-	
+
 	// UART Configuration flags
 	tty.c_cflag &= ~PARENB;
 	tty.c_cflag &= ~CSTOPB;
@@ -51,13 +41,13 @@ XBee::XBee()
 	tty.c_oflag &= ~ONLCR;
 	tty.c_cc[VTIME] = 10;
 	tty.c_cc[VMIN] = 0;
-	
+
 	// Set the baudrate
 	cfsetispeed(&tty, B9600);
 	cfsetospeed(&tty, B9600);
-	
-	
-	if (tcsetattr(serial_port, TCSANOW, &tty) != 0) 
+
+
+	if (tcsetattr(serial_port, TCSANOW, &tty) != 0)
 	{
 		printf("Error %i from tcsetattr: %s\n", errno, strerror(errno));
 		return;
@@ -69,21 +59,46 @@ XBee::~XBee()
 	close(serial_port);
 }
 
-void XBee::transmit(char[] msg)
+ssize_t XBee::transmit(std::string msg)
 {
-	write(serial_port, msg, sizeof(msg));
+	return write(serial_port, msg.c_str(), msg.length());
 }
 
-string XBee::read()
+std::string convertToString(char* a, int size)
+{
+	int i;
+	std::string s = "";
+	for (i = 0; i < size; i++)
+	{
+		s = s + a[i];
+	}
+	return s;
+}
+
+std::string XBee::receive()
 {
 	char read_buf [256];
-	memset(&read_buf, '\0', sizeof(read_buf);
+	memset(&read_buf, '\0', sizeof(read_buf));
 	int num_bytes = read(serial_port, &read_buf, sizeof(read_buf));
-	if (num_bytes < 0) 
+	if (num_bytes < 0)
 	{
 		printf("Error reading: %s", strerror(errno));
-		return 1;
+		return "-1";
 	}
-	string s_b = convertToString(read_buf, num_bytes);
+	std::string s_b = convertToString(read_buf, num_bytes);
 	return s_b;
+}
+
+std::string XBee::receive_line()
+{
+	char read_buf [256];
+	memset(&read_buf, '\0', sizeof(read_buf));
+	int length = 0;
+	do
+	{
+		length += read(serial_port, &read_buf + length, 1);
+		std::cout << length << "\t" << read_buf << std::endl;
+	}
+	while (read_buf[length - 1] != '\n');
+	return convertToString(read_buf, length);
 }
