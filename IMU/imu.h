@@ -35,6 +35,9 @@ struct imu_data_t
     axes_t velocity;
     axes_t ang_v;
     axes_t heading;
+    axes_t accel;
+
+    unsigned int pressure = 0;
 };
 
 int imu_init(int address);
@@ -43,6 +46,7 @@ bool go_to_measurement();
 imu_data_t imu_read_data();
 void parse_msg(imu_data_t &imu_data);
 void parse_float(float &num, int num_offset);
+void parse_int(unsigned int &num, int num_offset);
 imu_data_t rotate_axes(imu_data_t old_axes);
 bool send_xbus_msg(vector<unsigned char> cmd);
 bool check_sum();

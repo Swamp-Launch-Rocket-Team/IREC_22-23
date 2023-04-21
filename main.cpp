@@ -2,14 +2,31 @@
 #include <chrono>
 #include <list>
 #include <fstream>
+#include <stdlib.h>
 
 #include "IMU/imu.h"
 #include "DShot/dshot.h"
 #include "controller/controller.h"
 #include "DShot/busynano/busynano.h"
-// TODO: add buzzer, camera, ultrasonic, and xbee headers
+#include "ultrasonic/ultrasonic.h"
+#include "buzzer/buzzer.h"
+// TODO: add camera and xbee headers
+
+void armed_status(vector<Dshot> &motors, state_t &state, pair<long, state_t> (&launch_detect_log)[1024], int &index, chrono::_V2::system_clock::time_point &start, chrono::_V2::system_clock::time_point &launch_time);
+void launch_status(vector<Dshot> &motors, state_t &state, chrono::_V2::system_clock::time_point &launch_time);
+void eject_status(vector<Dshot> &motors, state_t &state);
+void container_release(vector<Dshot> &motors, state_t &state);
+void deploy_status(vector<Dshot> &motors, state_t &state);
+void parachute_release(vector<Dshot> &motors, state_t &state);
+void parachute_avoid(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint);
+void auto_status(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint);
+void descent_status(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint);
+void manual_status(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint);
+void ground_status(state_t &state, list<pair<long, state_t>> &data_log, list<pair<float, motor_cmd_t>> &cmd_log);
 
 bool send_motor_cmds(motor_cmd_t &cmd, vector<Dshot> &motors);
+float axes_mag(axes_t &axes);
+void write_data(list<pair<long, state_t>> &data_log, list<pair<float, motor_cmd_t>> &cmd_log);
 
 using namespace std;
 
@@ -20,12 +37,13 @@ int main()
 	pinMode(21, OUTPUT);
     digitalWrite(21, LOW);
 
-
     // Initialize all subsystems
     // Initialize IMU
     int file;
     int imu_address = 0x6B;
     file = imu_init(imu_address);
+    // Initialize ultrasonic
+    ultrasonic_init(3, 2);
 
     // Initialize Dshot
     vector<Dshot> motors;
@@ -39,77 +57,230 @@ int main()
     controller control("proto.cfg"); // Controller class, stores PID loop for each controller
     setpoint_t setpoint;
     list<pair<long, state_t>> data_log;
+    pair<long, state_t> launch_detect_log[1024]; // Is this allowed?
+    int launch_detect_log_index = 0;
 
-    // Idle on pad
-
-    // Idle in flight
-
-    // Container release
-
-    // Await release command
-
-    // Await altitude
-
-    // Flight
     auto start = chrono::high_resolution_clock::now();
     auto cur = chrono::high_resolution_clock::now();
+    auto launch_time = chrono::high_resolution_clock::now();
     list<pair<float, motor_cmd_t>> cmd_log;
+    motor_cmd_t motor_cmd = control.set_zero();
     group_startup(motors);
-    while (chrono::duration_cast<chrono::seconds>(cur - start).count() < 30)
+
+    state.status = state_t::ARMED;
+
+    // TODO: BEEPS!
+
+    while (true && state.status != state_t::LANDED)
     {
         cur = chrono::high_resolution_clock::now();
-        // // Square Wave
-        // if (chrono::duration_cast<chrono::milliseconds>(cur - start).count() % 20000 <= 10000)
-        // {
-            setpoint.y = 180; // degrees
-        // }
-        // else
-        // {
-        //     setpoint.y = -160; // degrees
-        // }
-
-        // Sine Wave
-        // setpoint.x = 30 * sin(chrono::duration_cast<chrono::microseconds>(cur - start).count()/1000000.0);
-        // if (setpoint.x > 0)
-        // {
-        //     setpoint.x = 180 - setpoint.x;
-        // }
-        // else
-        // {
-        //     setpoint.x = -180 - setpoint.x;
-        // }
-
-        // Integral Wind-Up Test
-        // if (chrono::duration_cast<chrono::milliseconds>(cur - start).count() <= 50000)
-        // {
-        //     setpoint.x = 20; // degrees
-        // }
-        // else
-        // {
-        //     setpoint.x = -20; // degrees
-        // }
-
-
         state.imu_data = imu_read_data();
-        motor_cmd_t motor_cmd = control.control_loop(setpoint, state);
-        // cout << setpoint.x << " " << state.imu_data.heading.x << endl;
+        state.ultra_alt = ultrasonic_read();
 
-        int delay = 500000;
-        busy10ns(delay); // 5 ms delay
-        send_motor_cmds(motor_cmd, motors);
+        if (state.imu_data.pressure == 0 && !data_log.empty())
+        {
+            state.imu_data.pressure = data_log.back().second.imu_data.pressure;
+        }
 
-        data_log.push_back(make_pair(chrono::duration_cast<chrono::microseconds>(cur - start).count(), state));
-        cmd_log.push_back(make_pair(setpoint.y, motor_cmd));
+        switch (state.status)
+        {
+        case state_t::ARMED:
+            armed_status(motors, state, launch_detect_log, launch_detect_log_index, start, launch_time);
+            break;            
+        
+        case state_t::LAUNCH:
+            launch_status(motors, state, launch_time);
+            break;
+
+        case state_t::EJECTION:
+            eject_status(motors, state);
+            break;
+
+        case state_t::CONTAINER_RELEASE:
+            container_release(motors, state);
+            break;
+
+        case state_t::DEPLOYED:
+            deploy_status(motors, state);
+            break;
+
+        case state_t::PARACHUTE_RELEASE:
+            parachute_release(motors, state);
+            break;
+
+        case state_t::PARACHUTE_AVOIDANCE:
+            parachute_avoid(motors, state, control, setpoint);
+            break;
+
+        case state_t::AUTONOMOUS:
+            auto_status(motors, state, control, setpoint);
+            break;
+
+        case state_t::DESCENT:
+            descent_status(motors, state, control, setpoint);
+            break;
+
+        case state_t::MANUAL:
+            manual_status(motors, state, control, setpoint);
+            break;
+        }
+
+        if (state.status != state_t::ARMED)
+        {
+            data_log.push_back(make_pair(chrono::duration_cast<chrono::microseconds>(cur - start).count(), state));
+            cmd_log.push_back(make_pair(setpoint.y, motor_cmd));
+        }
 
         while (chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() < 9500);
     }
 
-    // Descent
+    ground_status(state, data_log, cmd_log);
 
-    // Shutdown
-    // Record log to file
+    return 0;
+}
+
+void armed_status(vector<Dshot> &motors, state_t &state, pair<long, state_t> (&launch_detect_log)[1024], int &index, chrono::_V2::system_clock::time_point &start, chrono::_V2::system_clock::time_point &launch_time)
+{
+    launch_detect_log[index & 1023] = make_pair(chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count(), state);
+    
+    float avg_accel = 0;
+
+    for (int i = index - 100; i < index; ++i)
+    {
+        avg_accel += axes_mag(launch_detect_log[i & 1023].second.imu_data.accel);
+    }
+
+    avg_accel /= 100;
+
+    if (avg_accel > 5 * 9.8) // 5 gs of acceleration
+    {
+        state.status = state_t::LAUNCH;
+
+        string script = "python camera/camera.py &"; // start camera
+        system(script.c_str());
+
+        launch_time = chrono::high_resolution_clock::now();
+    }
+
+    index++;
+
+    return;
+}
+
+void launch_status(vector<Dshot> &motors, state_t &state, chrono::_V2::system_clock::time_point &launch_time)
+{
+    // TODO: DOUBLE CHECK THIS TIMER
+
+    if (chrono::duration_cast<chrono::seconds>(chrono::high_resolution_clock::now() - launch_time).count() > 130)
+    {
+        state.status = state_t::EJECTION;
+    }
+
+    return;
+}
+
+void eject_status(vector<Dshot> &motors, state_t &state)
+{
+    // TODO: WHAT DO WE DO HERE????
+
+    return;
+}
+
+void container_release(vector<Dshot> &motors, state_t &state)
+{
+    int motor_gpio = 6;
+
+    pinMode(motor_gpio, OUTPUT);
+    digitalWrite(motor_gpio, HIGH);
+
+    busy10ns(100 * 1000 * 100); // wait 1 second
+
+    digitalWrite(motor_gpio, LOW);
+
+    state.status = state_t::DEPLOYED;
+
+    return;
+}
+
+void deploy_status(vector<Dshot> &motors, state_t &state)
+{
+    
+
+    return;
+}
+
+void parachute_release(vector<Dshot> &motors, state_t &state)
+{
+    // int motor_gpio = 5;
+
+    // pinMode(motor_gpio, OUTPUT);
+    // digitalWrite(motor_gpio, HIGH);
+
+    // busy10ns(100 * 1000 * 50); // wait 0.5 seconds TODO: TEST THIS
+
+    // digitalWrite(motor_gpio, LOW);
+
+    // state.status = state_t::PARACHUTE_AVOIDANCE;
+
+    return;
+}
+
+void parachute_avoid(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint)
+{
+
+    return;
+}
+
+void auto_status(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint)
+{
+
+    return;
+}
+
+void descent_status(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint)
+{
+
+    return;
+}
+
+void manual_status(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint)
+{
+
+    return;
+}
+
+void ground_status(state_t &state, list<pair<long, state_t>> &data_log, list<pair<float, motor_cmd_t>> &cmd_log)
+{
+    write_data(data_log, cmd_log);
+
+    digitalWrite(21, HIGH); // buzzer scream!
+
+    while (true)
+
+    return;
+}
+
+
+// Miscellaneous functions
+
+bool send_motor_cmds(motor_cmd_t &cmd, vector<Dshot> &motors)
+{
+    motors[0].throttle(cmd.motor_1);
+    motors[1].throttle(cmd.motor_2);
+    motors[2].throttle(cmd.motor_3);
+    motors[3].throttle(cmd.motor_4);
+    return true;
+}
+
+float axes_mag(axes_t &axes)
+{
+    return sqrt(axes.x * axes.x + axes.y * axes.y + axes.z * axes.z); 
+}
+
+void write_data(list<pair<long, state_t>> &data_log, list<pair<float, motor_cmd_t>> &cmd_log)
+{
     ofstream log_file;
-    log_file.open("log.csv");
+    log_file.open("april_launch_log.csv");
 
     log_file << "timestamp,"
             << "roll,"
@@ -125,6 +296,7 @@ int main()
             << "gps_lon,"
             << "imu_alt,"
             << "ultrasonic_alt,"
+            << "status,"
             << "command,"
             << "motor_1,"
             << "motor_2,"
@@ -148,22 +320,15 @@ int main()
             << (*it1).second.imu_data.gps.lon << ","
             << (*it1).second.imu_data.alt << ","
             << (*it1).second.ultra_alt << ","
+            << (*it1).second.status << ","
             << (*it2).first << ","
             << (*it2).second.motor_1 << ","
             << (*it2).second.motor_2 << ","
             << (*it2).second.motor_3 << ","
             << (*it2).second.motor_4 << endl;
     }
+
     log_file.close();
 
-    return 0;
-}
-
-bool send_motor_cmds(motor_cmd_t &cmd, vector<Dshot> &motors)
-{
-    motors[0].throttle(cmd.motor_1);
-    motors[1].throttle(cmd.motor_2);
-    motors[2].throttle(cmd.motor_3);
-    motors[3].throttle(cmd.motor_4);
-    return true;
+    return;
 }

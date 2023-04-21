@@ -38,5 +38,6 @@ class controller
         controller(std::string filename);
         // ~controller();
         motor_cmd_t control_loop(setpoint_t &setpoint, state_t &state);
+        motor_cmd_t set_zero();
 
 };

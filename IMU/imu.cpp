@@ -24,7 +24,7 @@ int imu_init(int address)
         return -1;
     }
 
-    buf.resize(100);
+    buf.resize(110);
 
     return file;
 }
@@ -85,11 +85,11 @@ imu_data_t imu_read_data()
     // if (isnan(imu_data.heading.x))
     // {
     //     cout << "Error: NaN found in message - ";
-    //     for (int i = 0; i < data_len; ++i)
-    //     {
-    //         cout << hex << (int)buf[0] << " ";
-    //     }
-    //     cout << endl;
+        // for (int i = 0; i < 110; ++i)
+        // {
+        //     cout << hex << (int)buf[i] << " ";
+        // }
+        // cout << endl;
     // }
 
     imu_data = rotate_axes(imu_data);
@@ -132,6 +132,16 @@ void parse_msg(imu_data_t &imu_data)
             parse_float(imu_data.heading.y, i + 7);
             parse_float(imu_data.heading.z, i + 11);
         }
+        else if (buf[i] == 0x30 && buf[i+1] == 0x10 && buf[i+2] == 0x04) // XDI_EulerAngles 100 Hz
+        {
+            parse_int(imu_data.pressure, i + 3);
+        }
+        else if (buf[i] == 0x40 && buf[i+1] == 0x20 && buf[i+2] == 0x0C) // XDI_EulerAngles 100 Hz
+        {
+            parse_float(imu_data.accel.x, i + 3);
+            parse_float(imu_data.accel.y, i + 7);
+            parse_float(imu_data.accel.z, i + 11);
+        }
     }
 
     return;
@@ -148,6 +158,18 @@ void parse_float(float &num, int num_offset)
     arr[0] = buf[num_offset + 3];
 
     num = *(float*)&arr;
+}
+
+void parse_int(unsigned int &num, int num_offset)
+{
+    unsigned char arr[4] = {0,0,0,0};
+
+    arr[3] = buf[num_offset];
+    arr[2] = buf[num_offset + 1];
+    arr[1] = buf[num_offset + 2];
+    arr[0] = buf[num_offset + 3];
+
+    num = *(unsigned int*)&arr;
 }
 
 // checks the checksum byte to confirm valid message
@@ -259,16 +281,16 @@ bool send_xbus_msg(vector<unsigned char> cmd)
 	cout << hex << (int)ack[i] << " ";
     }
 
-    temp = 0x04;
-    if (write(file, &temp, 1) != 1 || read(file,&ack[0],ack.size()) != ack.size())
-    {
-	cout << "Error reading pipe status" << endl;
-    }
-    cout << endl;
-    for (int i = 0; i < ack.size(); ++i)
-    {
-	cout << hex << (int)ack[i] << " ";
-    }
+    // temp = 0x04;
+    // if (write(file, &temp, 1) != 1 || read(file,&ack[0],ack.size()) != ack.size())
+    // {
+	// cout << "Error reading pipe status" << endl;
+    // }
+    // cout << endl;
+    // for (int i = 0; i < ack.size(); ++i)
+    // {
+	// cout << hex << (int)ack[i] << " ";
+    // }
 
     return true;
 }

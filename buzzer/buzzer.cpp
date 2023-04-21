@@ -1,5 +1,5 @@
 #include "buzzer.h"
-#define PERIOD 170
+#define PERIOD 500000
 
 static int buzzer_pin;
 
@@ -13,13 +13,9 @@ void buzzer_init(int pin_number)
 
 static void buzzer_length(int milliseconds)
 {
-    for(int i = 0; i < milliseconds; i++)
-    {
-        digitalWrite(buzzer_pin, 1);
-        delayMicroseconds(PERIOD);
-        digitalWrite(buzzer_pin, 0);
-        delayMicroseconds(PERIOD);
-    }
+    digitalWrite(buzzer_pin, 1);
+    delayMicroseconds(milliseconds * 1000);
+    digitalWrite(buzzer_pin, 0);
 }
 
 void buzzer_long()
@@ -27,7 +23,7 @@ void buzzer_long()
     for(int i = 0; i < 3; i++)
     {
         buzzer_length(1000);
-        delay(1000);
+        delay(250);
     }
 }
 
@@ -36,6 +32,6 @@ void buzzer_short()
     for(int i = 0; i < 3; i++)
     {
         buzzer_length(500);
-        delay(500);
+        delay(250);
     }
 }

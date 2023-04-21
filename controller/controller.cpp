@@ -113,3 +113,15 @@ motor_cmd_t controller::control_loop(setpoint_t &setpoint, state_t &state)
 
     return motor_cmd;
 }
+
+motor_cmd_t controller::set_zero()
+{
+    motor_cmd_t motor_cmd;
+
+    motor_cmd.motor_1 = 0;
+    motor_cmd.motor_2 = 0;
+    motor_cmd.motor_3 = 0;
+    motor_cmd.motor_4 = 0;
+
+    return motor_cmd;
+}
