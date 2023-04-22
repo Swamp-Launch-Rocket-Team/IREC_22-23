@@ -15,8 +15,8 @@
 void armed_status(vector<Dshot> &motors, state_t &state, pair<long, state_t> (&launch_detect_log)[1024], int &index, chrono::_V2::system_clock::time_point &start, chrono::_V2::system_clock::time_point &launch_time);
 void launch_status(vector<Dshot> &motors, state_t &state, chrono::_V2::system_clock::time_point &launch_time);
 void eject_status(vector<Dshot> &motors, state_t &state);
-void container_release(vector<Dshot> &motors, state_t &state);
-void deploy_status(vector<Dshot> &motors, state_t &state);
+void container_release(vector<Dshot> &motors, state_t &state, chrono::_V2::system_clock::time_point &motor_start);
+void deploy_status(vector<Dshot> &motors, state_t &state, chrono::_V2::system_clock::time_point &launch_time);
 void parachute_release(vector<Dshot> &motors, state_t &state);
 void parachute_avoid(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint);
 void auto_status(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint);
@@ -45,6 +45,9 @@ int main()
     // Initialize ultrasonic
     ultrasonic_init(3, 2);
 
+    // Initialize servos
+    pinMode(6, OUTPUT); // container motors
+
     // Initialize Dshot
     vector<Dshot> motors;
     motors.emplace_back(28);
@@ -63,11 +66,15 @@ int main()
     auto start = chrono::high_resolution_clock::now();
     auto cur = chrono::high_resolution_clock::now();
     auto launch_time = chrono::high_resolution_clock::now();
+    auto motor_start = chrono::high_resolution_clock::now();
     list<pair<float, motor_cmd_t>> cmd_log;
     motor_cmd_t motor_cmd = control.set_zero();
     group_startup(motors);
 
     state.status = state_t::ARMED;
+    bool camera = false;
+    bool motor_1 = false;
+    bool motor_2 = false;
 
     // TODO: BEEPS!
 
@@ -81,6 +88,8 @@ int main()
         {
             state.imu_data.pressure = data_log.back().second.imu_data.pressure;
         }
+
+        
 
         switch (state.status)
         {
@@ -97,11 +106,16 @@ int main()
             break;
 
         case state_t::CONTAINER_RELEASE:
-            container_release(motors, state);
+            if (!motor_1)
+            {
+                motor_start = chrono::high_resolution_clock::now();
+                motor_1 = true;
+            }
+            container_release(motors, state, motor_start);
             break;
 
         case state_t::DEPLOYED:
-            deploy_status(motors, state);
+            deploy_status(motors, state, launch_time);
             break;
 
         case state_t::PARACHUTE_RELEASE:
@@ -131,6 +145,16 @@ int main()
             cmd_log.push_back(make_pair(setpoint.y, motor_cmd));
         }
 
+        if (state.status != state_t::ARMED && !camera)
+        {
+            string script = "python camera/camera.py &"; // start camera
+            system(script.c_str());
+
+            launch_time = chrono::high_resolution_clock::now();
+
+            camera = true;            
+        }
+
         while (chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() < 9500);
     }
 
@@ -155,11 +179,6 @@ void armed_status(vector<Dshot> &motors, state_t &state, pair<long, state_t> (&l
     if (avg_accel > 5 * 9.8) // 5 gs of acceleration
     {
         state.status = state_t::LAUNCH;
-
-        string script = "python camera/camera.py &"; // start camera
-        system(script.c_str());
-
-        launch_time = chrono::high_resolution_clock::now();
     }
 
     index++;
@@ -171,7 +190,7 @@ void launch_status(vector<Dshot> &motors, state_t &state, chrono::_V2::system_cl
 {
     // TODO: DOUBLE CHECK THIS TIMER
 
-    if (chrono::duration_cast<chrono::seconds>(chrono::high_resolution_clock::now() - launch_time).count() > 130)
+    if (chrono::duration_cast<chrono::seconds>(chrono::high_resolution_clock::now() - launch_time).count() > 140)
     {
         state.status = state_t::EJECTION;
     }
@@ -183,28 +202,30 @@ void eject_status(vector<Dshot> &motors, state_t &state)
 {
     // TODO: WHAT DO WE DO HERE????
 
-    return;
-}
-
-void container_release(vector<Dshot> &motors, state_t &state)
-{
-    int motor_gpio = 6;
-
-    pinMode(motor_gpio, OUTPUT);
-    digitalWrite(motor_gpio, HIGH);
-
-    busy10ns(100 * 1000 * 100); // wait 1 second
-
-    digitalWrite(motor_gpio, LOW);
-
-    state.status = state_t::DEPLOYED;
+    state.status = state_t::CONTAINER_RELEASE;
 
     return;
 }
 
-void deploy_status(vector<Dshot> &motors, state_t &state)
+void container_release(vector<Dshot> &motors, state_t &state, chrono::_V2::system_clock::time_point &motor_start)
 {
-    
+    digitalWrite(6, HIGH);
+
+    if (chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - motor_start).count() > 1000) // run motors for one second
+    {
+        digitalWrite(6, LOW);
+        state.status = state_t::DEPLOYED;
+    } 
+
+    return;
+}
+
+void deploy_status(vector<Dshot> &motors, state_t &state, chrono::_V2::system_clock::time_point &launch_time)
+{
+    if (chrono::duration_cast<chrono::seconds>(chrono::high_resolution_clock::now() - launch_time).count() > 5 * 60)
+    {
+        state.status = state_t::LANDED;
+    }
 
     return;
 }
@@ -221,31 +242,32 @@ void parachute_release(vector<Dshot> &motors, state_t &state)
     // digitalWrite(motor_gpio, LOW);
 
     // state.status = state_t::PARACHUTE_AVOIDANCE;
+    state.status = state_t::DEPLOYED;
 
     return;
 }
 
 void parachute_avoid(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint)
 {
-
+    state.status = state_t::DEPLOYED;
     return;
 }
 
 void auto_status(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint)
 {
-
+    state.status = state_t::DEPLOYED;
     return;
 }
 
 void descent_status(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint)
 {
-
+    state.status = state_t::DEPLOYED;
     return;
 }
 
 void manual_status(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint)
 {
-
+    state.status = state_t::DEPLOYED;
     return;
 }
 
