@@ -1,51 +1,35 @@
-# IREC 2023 Ground Station
-# Dylan Ogrodowski
-# 3/1/2023
-
-# Required setup installs:
-# Python 3
-# pip install keyboard
-# pip install digi-xbee
-
-from digi.xbee.devices import XBeeDevice
-from digi.xbee.io import IOLine, IOMode
+import serial
 import time
-import keyboard
+from datetime import datetime
 
-device = XBeeDevice("/dev/serial0", 9600)
-device.open()
-device.set_sync_ops_timeout(10)
+# current dateTime
+now = datetime.now()
 
-print('IREC 2023 ground station sender terminal')
-print('Press \'r\' to initiate release approval')
+# convert to string
+date_time_str = now.strftime("%Y-%m-%d %H %M %S")
 
-transmit_message = 'rel'
+serialPort = serial.Serial(
+    port="COM3", baudrate=9600, bytesize=8, timeout=2, stopbits=serial.STOPBITS_ONE
+)
+serialString = ""  # Used to hold data coming over UART
 
-while(1):
+f = open(f"{date_time_str}.txt", "w")
 
-    # Check for any new data and print to serial monitor
-    xbee_message = device.read_data() # Read the messgae
-    if xbee_message is not None: # Message will return None if nothing is received
-        print(xbee_message.data.decode('utf8')) # Decode the message before printing to the serial monitor
-        
-    try:  # used try so that if user pressed other than the given key error will not be shown
-        if keyboard.is_pressed('r'):  # if key 'r' is pressed
-            print('Initializing release...')
-            print('Press \'c\' to confirm release approval or \'x\' to cancel')
-            confirm = False
-            cancel = False
-            while(not keyboard.is_pressed('c') and not keyboard.is_pressed('x')): # Wait for confirmation or cancellation
-                pass # Idle
-            
-            if keyboard.is_pressed('x'):
-                print('Cancelled release approval. Press \'r\' to reinitiate release approval')
-                time.sleep(0.125)
-                continue
-            elif keyboard.is_pressed('c'):
-                #device.send_data_broadcast(transmit_message)
-                print("Release command sent")
-                time.sleep(0.125)
-                print('Press \'r\' to initiate release approval')
-                
-    except:
-        break  # if user pressed a key other than the given key the loop will break
+while 1:
+    try:
+        # Read data out of the buffer until a carraige return / new line is found
+        serialString = serialPort.readline()
+
+        # Print the contents of the serial data
+        try:
+            f.write(serialString.decode("Ascii"))
+            print(serialString.decode("Ascii"))
+        except:
+            pass
+        time.sleep(0.1)
+    except KeyboardInterrupt:
+        break
+
+# clean up
+f.close()
+serialPort.close()
