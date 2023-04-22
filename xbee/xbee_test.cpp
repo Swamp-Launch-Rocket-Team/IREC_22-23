@@ -8,7 +8,7 @@ int main()
 	int i = 0;
 	while(true)
 	{
-		std::cout << xbee.receive_line() << std::endl;
+		std::cout << xbee.receive() << std::endl;
 		std::string msg = "Raspberry Pi " + std::to_string(i) + "\n";
 		xbee.transmit(msg);
 		i++;

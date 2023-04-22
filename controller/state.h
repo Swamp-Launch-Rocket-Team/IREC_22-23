@@ -2,7 +2,6 @@
 #define STATE_H
 
 #include "../IMU/imu.h"
-#include "../IMU/imu.h"
 
 // Stores information of drone state
 struct state_t
