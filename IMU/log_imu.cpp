@@ -50,9 +50,9 @@ int main()
             int delay = 500000;
             busy10ns(delay); // 5 ms delay
 
-            if (state.pressure != 0)
+            if (state.alt != -1)
             {
-                log_file << chrono::duration_cast<chrono::microseconds>(cur - start).count() << "," << state.pressure << endl;
+                log_file << chrono::duration_cast<chrono::microseconds>(cur - start).count() << "," << state.alt << endl;
             }
             
             while (chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() < 9500);

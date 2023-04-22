@@ -10,7 +10,8 @@
 #include "DShot/busynano/busynano.h"
 #include "ultrasonic/ultrasonic.h"
 #include "buzzer/buzzer.h"
-// TODO: add camera and xbee headers
+#include "xbee/xbee_interpreter.h"
+// TODO: add camera headers
 
 void armed_status(vector<Dshot> &motors, state_t &state, pair<long, state_t> (&launch_detect_log)[1024], int &index, chrono::_V2::system_clock::time_point &start, chrono::_V2::system_clock::time_point &launch_time);
 void launch_status(vector<Dshot> &motors, state_t &state, chrono::_V2::system_clock::time_point &launch_time);
@@ -69,7 +70,7 @@ int main()
     auto motor_start = chrono::high_resolution_clock::now();
     list<pair<float, motor_cmd_t>> cmd_log;
     motor_cmd_t motor_cmd = control.set_zero();
-    group_startup(motors);
+    // group_startup(motors);
 
     state.status = state_t::ARMED;
     bool camera = false;
@@ -77,6 +78,8 @@ int main()
     bool motor_2 = false;
 
     // TODO: BEEPS!
+
+    xbee_init(state);
 
     while (true && state.status != state_t::LANDED)
     {
