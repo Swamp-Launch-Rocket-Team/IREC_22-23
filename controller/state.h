@@ -24,6 +24,8 @@ struct state_t
         MANUAL,
         LANDED
     } status;
+
+    int highest_command_id_processed = 0;
 };
 
 #endif

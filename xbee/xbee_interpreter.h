@@ -2,6 +2,8 @@
 #define XBEE_INTERPRETER_H
 
 #include <thread>
+#include <sstream>
+#include <iomanip>
 
 #include "../controller/state.h"
 #include "xbee_uart2.h"
