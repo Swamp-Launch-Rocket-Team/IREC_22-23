@@ -96,8 +96,8 @@ std::string XBee::receive_line()
 	int length = 0;
 	do
 	{
-		length += read(serial_port, &read_buf + length, 1);
-		std::cout << length << "\t" << read_buf << std::endl;
+		length += read(serial_port, read_buf + length, 1);
+		// std::cout << length << "\t" << read_buf << std::endl;
 	}
 	while (read_buf[length - 1] != '\n');
 	return convertToString(read_buf, length);

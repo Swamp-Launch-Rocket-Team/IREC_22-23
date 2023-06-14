@@ -11,18 +11,18 @@ import re
 import random
 
 # User-defined constants
+lat_bounds = [28.083, 28.084]
+lon_bounds = [-80.600, -80.601]
+
+ports = ["COM3", "COM4"]  # Tests ports in order
+directory = "logs"
+
 heading_font = ("Arial", 18, "bold")
 log_font = ("Arial", 12, "bold")
 text_font = ("Arial", 14, "bold")
 
 states = ['ARMED', 'LAUNCH', 'EJECTION', 'CONTAIN_REL', 'DEPLOYED',
           'CHUTE_REL', 'CHUTE_AVOID', 'AUTONOMOUS', 'DESCENT', 'MANUAL', 'LANDED']
-
-lat_bounds = [28.083, 28.084]
-lon_bounds = [-80.600, -80.601]
-
-ports = ["COM3", "COM4"]  # Tests ports in order
-directory = "logs"
 
 # Mock radio for testing without an Xbee connected
 mock_radio = True
@@ -36,6 +36,24 @@ if not mock_radio:
         serialPort = serial.Serial(
             port=ports[1], baudrate=9600, bytesize=8, timeout=2, stopbits=serial.STOPBITS_ONE
         )
+
+
+def mock_read_radio():
+    global warning_message_shown
+    if not warning_message_shown:
+        warning_message_shown = True
+        # Show warning if radio is being mocked
+        showwarning(title="Warning", message='The "mock_radio" debug flag is enabled. '
+                                                'The radio will NOT be initialized. All data is synthetic. '
+                                                'Set this flag to "False" to enable radio communication features.')
+    time.sleep(0.5)
+    with lock:
+        if command_queue and random.random() < 0.25:
+            mock_id = f"{command_queue[0]['id']:03d}"
+        else:
+            mock_id = "XXX"
+    return (f"{mock_id}, 00001, ARMED, 28.083000, -80.601000, 18.8305, 0.0475154, -0.0779214\n")
+
 
 # Global flag for go status
 go_status_target = False
@@ -80,20 +98,7 @@ warning_message_shown = False
 # Function to read from the radio
 def read_radio():
     if mock_radio:
-        global warning_message_shown
-        if not warning_message_shown:
-            warning_message_shown = True
-            # Show warning if radio is being mocked
-            showwarning(title="Warning", message='The "mock_radio" debug flag is enabled. '
-                                                 'The radio will NOT be initialized. All data is synthetic. '
-                                                 'Set this flag to "False" to enable radio communication features.')
-        time.sleep(0.5)
-        with lock:
-            if command_queue and random.random() < 0.25:
-                mock_id = f"{command_queue[0]['id']:03d}"
-            else:
-                mock_id = "XXX"
-        return (f"{mock_id}, 00001, ARMED, 28.083000, -80.601000, 18.8305, 0.0475154, -0.0779214\n")
+        return mock_read_radio()
 
     serialString = ""  # Used to hold data coming over UART
     # Read data out of the buffer until a carraige return / new line is found
