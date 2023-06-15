@@ -3,7 +3,6 @@
 // XBee UART interface
 
 #include <iostream>
-#include "xbee_uart2.h"
 #include <fstream>
 #include <sstream>
 #include <stdio.h>
@@ -12,6 +11,8 @@
 #include <errno.h>
 #include <unistd.h>
 #include <termios.h>
+
+#include "xbee_uart2.h"
 
 XBee::XBee()
 {
@@ -89,6 +90,7 @@ std::string XBee::receive()
 	return s_b;
 }
 
+// Blocks execution until a full message is received.
 std::string XBee::receive_line()
 {
 	char read_buf [256];
@@ -101,4 +103,37 @@ std::string XBee::receive_line()
 	}
 	while (read_buf[length - 1] != '\n');
 	return convertToString(read_buf, length);
+}
+
+// Reads available data and adds it to a buffer.
+// If the buffer contains a full message, it is returned.
+// Otherwise, an empty string is returned.
+std::string XBee::receive_message()
+{
+	// Stores incoming data across multiple function calls
+	static std::string message_buf = "";
+
+	// Read available data from device
+	char read_buf [256];
+	memset(&read_buf, '\0', sizeof(read_buf));
+	int num_bytes = read(serial_port, &read_buf, sizeof(read_buf));
+	if (num_bytes < 0)
+	{
+		printf("Error reading: %s", strerror(errno));
+		return "-1";
+	}
+	std::string received_data = convertToString(read_buf, num_bytes);
+
+	// Append new data to the buffer
+	message_buf += received_data;
+
+	// Find end of complete message
+	std::size_t message_end = message_buf.find("\n");
+	if(message_end == std::string::npos)
+	{
+		return "";
+	}
+    std::string complete_message = message_buf.substr(0, message_end);
+    message_buf = message_buf.substr(message_end + 1);
+    return complete_message;
 }
