@@ -46,7 +46,7 @@ def mock_read_radio():
         showwarning(title="Warning", message='The "mock_radio" debug flag is enabled. '
                                                 'The radio will NOT be initialized. All data is synthetic. '
                                                 'Set this flag to "False" to enable radio communication features.')
-    time.sleep(0.5)
+    time.sleep(1)
     with lock:
         if command_queue and random.random() < 0.25:
             mock_id = f"{command_queue[0]['id']:03d}"
@@ -90,7 +90,7 @@ def send_outgoing():
                     send_radio(f"{command_queue[0]['radio']}")
                 except IndexError:
                     pass
-        time.sleep(1)
+        time.sleep(2)
 
 
 warning_message_shown = False
@@ -131,7 +131,7 @@ def read_incoming():
             current_time = time.strftime("%H:%M:%S", time.localtime())
             f.write(current_time + " " + msg)
             print_incoming(msg)
-        time.sleep(0.5)
+        time.sleep(1)
 
 
 # Function to print incoming data with timestamps

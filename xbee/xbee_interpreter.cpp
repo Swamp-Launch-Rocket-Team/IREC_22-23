@@ -33,10 +33,11 @@ void xbee_thread(state_t& state)
         xbee_transmit(xbee, state);
         do
         {
+            auto inner_start = chrono::high_resolution_clock::now();
             xbee_receive(xbee, state);
-            usleep(1000);
+            while(chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - inner_start).count() < 100);
         }
-        while(chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() < 1000);
+        while(chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() < 2000);
     }
 }
 
