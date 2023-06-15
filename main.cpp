@@ -158,6 +158,8 @@ int main()
             camera = true;            
         }
 
+        handle_xbee_command(state, setpoint);
+
         while (chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() < 9500);
     }
 
