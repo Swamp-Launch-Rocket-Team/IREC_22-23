@@ -64,6 +64,7 @@ command_queue = []
 lock = threading.Lock()
 
 # Open file with current date and time
+directory = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), directory)
 os.makedirs(directory, exist_ok=True)
 f = open(os.path.join(
     directory, f"{time.strftime('%Y-%m-%dT%H%M%S', time.localtime())}.txt"), "w")
