@@ -19,8 +19,9 @@ XBee::XBee()
 	// UART setup source:l
 	// https://medium.com/geekculture/raspberry-pi-c-libraries-for-working-with-i2c-spi-and-uart-4677f401b584
 	serial_port = open("/dev/serial0", O_RDWR);
-	if(tcgetattr(serial_port, &tty) != 0) {
-		printf("Error %i from tcgetattr: %s\n", errno, strerror(errno));
+	if(tcgetattr(serial_port, &tty) != 0)
+	{
+		printf("%s:%d: Error %i from tcgetattr: %s\n", __FILE__, __LINE__ - 2, errno, strerror(errno));
 		return;
 	}
 
@@ -50,7 +51,7 @@ XBee::XBee()
 
 	if (tcsetattr(serial_port, TCSANOW, &tty) != 0)
 	{
-		printf("Error %i from tcsetattr: %s\n", errno, strerror(errno));
+		printf("%s:%d: Error %i from tcsetattr: %s\n", __FILE__, __LINE__ - 2, errno, strerror(errno));
 		return;
 	}
 }
@@ -80,11 +81,11 @@ std::string XBee::receive()
 {
 	char read_buf [256];
 	memset(&read_buf, '\0', sizeof(read_buf));
-	int num_bytes = read(serial_port, &read_buf, sizeof(read_buf));
+	ssize_t num_bytes = read(serial_port, &read_buf, sizeof(read_buf));
 	if (num_bytes < 0)
 	{
-		printf("Error reading: %s", strerror(errno));
-		return "-1";
+		printf("%s:%d: Error %i from read: %s\n", __FILE__, __LINE__ - 3, errno, strerror(errno));
+		return "";
 	}
 	std::string s_b = convertToString(read_buf, num_bytes);
 	return s_b;
@@ -95,11 +96,18 @@ std::string XBee::receive_line()
 {
 	char read_buf [256];
 	memset(&read_buf, '\0', sizeof(read_buf));
-	int length = 0;
+	ssize_t length = 0;
 	do
 	{
-		length += read(serial_port, read_buf + length, 1);
-		// std::cout << length << "\t" << read_buf << std::endl;
+		ssize_t num_bytes = read(serial_port, read_buf + length, 1);
+		if (num_bytes < 0)
+		{
+			printf("%s:%d: Error %i from read: %s\n", __FILE__, __LINE__ - 3, errno, strerror(errno));
+		}
+		else
+		{
+			length += num_bytes;
+		}
 	}
 	while (read_buf[length - 1] != '\n');
 	return convertToString(read_buf, length);
@@ -116,11 +124,11 @@ std::string XBee::receive_message()
 	// Read available data from device
 	char read_buf [256];
 	memset(&read_buf, '\0', sizeof(read_buf));
-	int num_bytes = read(serial_port, &read_buf, sizeof(read_buf));
+	ssize_t num_bytes = read(serial_port, &read_buf, sizeof(read_buf));
 	if (num_bytes < 0)
 	{
-		printf("Error reading: %s", strerror(errno));
-		return "-1";
+		printf("%s:%d: Error %i from read: %s\n", __FILE__, __LINE__ - 3, errno, strerror(errno));
+		return "";
 	}
 	std::string received_data = convertToString(read_buf, num_bytes);
 

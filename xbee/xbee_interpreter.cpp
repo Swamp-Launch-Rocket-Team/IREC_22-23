@@ -42,7 +42,7 @@ void xbee_thread(state_t& state)
 }
 
 // Transmits command acknowledgements, drone status, GPS, and velocity
-void xbee_transmit(XBee xbee, const state_t& state)
+void xbee_transmit(XBee& xbee, const state_t& state)
 {
     static int message_number = 1;
 
@@ -115,7 +115,7 @@ float hex_string_to_float(std::string hex_string)
 }
 
 // Reads incoming data and interprets commands
-void xbee_receive(XBee xbee, state_t& state)
+void xbee_receive(XBee& xbee, state_t& state)
 {
     std::string message = xbee.receive_message();
     if(message.length() < 5)
@@ -269,7 +269,7 @@ void xbee_receive(XBee xbee, state_t& state)
 }
 
 // Reads command from command buffer and alters the state and setpoint accordingly
-void handle_xbee_command(state_t& state, setpoint_t& setpoint, bool print_log = false)
+void handle_xbee_command(state_t& state, setpoint_t& setpoint, bool print_log /* = false */)
 {
     // Ignore command if the command has already been handled
     if(state.command_buffer.command_id <= state.highest_command_id_processed)
