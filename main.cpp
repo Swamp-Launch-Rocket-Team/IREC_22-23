@@ -3,6 +3,8 @@
 #include <list>
 #include <fstream>
 #include <stdlib.h>
+#include <filesystem>
+#include <thread>
 
 #include "IMU/imu.h"
 #include "DShot/dshot.h"
@@ -11,7 +13,6 @@
 #include "ultrasonic/ultrasonic.h"
 #include "buzzer/buzzer.h"
 #include "xbee/xbee_interpreter.h"
-// TODO: add camera headers
 
 void armed_status(vector<Dshot> &motors, state_t &state, pair<long, state_t> (&launch_detect_log)[1024], int &index, chrono::_V2::system_clock::time_point &start, chrono::_V2::system_clock::time_point &launch_time);
 void launch_status(vector<Dshot> &motors, state_t &state, chrono::_V2::system_clock::time_point &launch_time);
@@ -31,8 +32,31 @@ void write_data(list<pair<long, state_t>> &data_log, list<pair<float, motor_cmd_
 
 using namespace std;
 
-int main()
+int main(int argc, char* argv[])
 {
+    // Set up camera lambda function
+    auto take_photo = [argv]()
+    {
+        std::thread t([&]() {
+            const std::filesystem::path relative_path_to_camera_script = "camera.py";
+
+            // Get absolute path of camera python script
+            std::filesystem::path path = argv[0];
+            if(path.is_relative())
+            {
+                path = std::string(argv[0]).substr(2);
+            }
+            path = std::filesystem::absolute(path).parent_path();
+            path = path / relative_path_to_camera_script;
+
+            // Run camera python script
+            std::string script = "python " + path.string() + " &";
+            system(script.c_str());
+        });
+        t.detach();
+        return t;
+    };
+
     // Turn off buzzer
     wiringPiSetup();
 	pinMode(21, OUTPUT);
