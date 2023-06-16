@@ -144,7 +144,7 @@ void xbee_receive(XBee& xbee, state_t& state)
         if(message.length() != 5)
             return;
 
-        switch(message[4])
+        switch(tolower(message[4]))
         {
             case '0':
                 radio_command.new_status = state_t::ARMED;
@@ -176,7 +176,7 @@ void xbee_receive(XBee& xbee, state_t& state)
             case '9':
                 radio_command.new_status = state_t::MANUAL;
                 break;
-            case 'A':
+            case 'a':
                 radio_command.new_status = state_t::LANDED;
                 break;
             default:
@@ -276,7 +276,7 @@ void handle_xbee_command(state_t& state, setpoint_t& setpoint, bool print_log /*
         return;
 
     std::stringstream ss;
-    ss << "ID: " << state.command_buffer.command_id << "\t";
+    ss << std::setw(3) << std::setfill('0') << state.command_buffer.command_id << ":\t";
 
     if(state.command_buffer.operation == state_t::radio_command_t::GO_FOR_DEPLOYMENT)
     {

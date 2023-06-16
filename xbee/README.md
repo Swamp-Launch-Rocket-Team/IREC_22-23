@@ -40,7 +40,7 @@ Commands the drone to switch to a certain state. 5 characters long.
   - `7`: Autonomous
   - `8`: Descent
   - `9`: Manual
-  - `A`: Landed
+  - `A` or `a`: Landed
 
 ### GPS Target Command
 Commands the drone to navigate to a target position. 29 characters long.
