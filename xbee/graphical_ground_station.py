@@ -44,11 +44,17 @@ def mock_read_radio():
         warning_message_shown = True
         # Show warning if radio is being mocked
         showwarning(title="Warning", message='The "mock_radio" debug flag is enabled. '
-                                                'The radio will NOT be initialized. All data is synthetic. '
-                                                'Set this flag to "False" to enable radio communication features.')
+                    'The radio will NOT be initialized. All data is synthetic. '
+                    'Set this flag to "False" to enable radio communication features.')
     time.sleep(1)
     with lock:
-        if command_queue and random.random() < 0.25:
+        rand = random.random()
+        if rand < 0.1:
+            if command_queue:
+                mock_id = f"{command_queue[0]['id'] + 5:03d}"
+            else:
+                mock_id = f"{local_command_id + 5:03d}"
+        elif command_queue and rand < 0.35:
             mock_id = f"{command_queue[0]['id']:03d}"
         else:
             mock_id = "XXX"
@@ -59,12 +65,13 @@ def mock_read_radio():
 go_status_target = False
 
 # Command ID globals
-command_id = 1
+local_command_id = 1
 command_queue = []
 lock = threading.Lock()
 
 # Open file with current date and time
-directory = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), directory)
+directory = os.path.join(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))), directory)
 os.makedirs(directory, exist_ok=True)
 f = open(os.path.join(
     directory, f"{time.strftime('%Y-%m-%dT%H%M%S', time.localtime())}.txt"), "w")
@@ -166,6 +173,8 @@ def print_outgoing_log(msg):
             style = "send"
         elif word.lower() == "acknowledged":
             style = "ack"
+        elif word.lower() in ["warning", "error", "ignored"]:
+            style = "error"
         outgoing_log.insert(tk.END, f"{word}", style)
     outgoing_log.config(state=tk.DISABLED)
     if autoscroll:
@@ -175,56 +184,85 @@ def print_outgoing_log(msg):
 # Function to add a command to the command queue
 def enqueue_command(command_opcode: str, command_operands: str, command_text: str):
     command_text = command_text.capitalize()
-    global command_id
+    global local_command_id
     with lock:
         command_queue.append({
-            "id": command_id,
+            "id": local_command_id,
             # NOTE: Might need to end with "\r\n"
-            "radio": f"{command_opcode}{command_id:03d}{command_operands}\n",
+            "radio": f"{command_opcode}{local_command_id:03d}{command_operands}\n",
             "text": command_text
         })
-    # Update command queue
-    autoscroll = False
-    if queue_text_scrollbar.get()[1] == 1:
-        autoscroll = True
-    queue_text.config(state=tk.NORMAL)
-    queue_text.insert(tk.END, f"{command_id:03d} ", "id")
-    queue_text.insert(tk.END, command_text + "\n", "text")
-    queue_text.config(state=tk.DISABLED)
-    if autoscroll:
-        queue_text.see(tk.END)
-    queue_cancel_button.config(state=tk.NORMAL)
-    command_id += 1
+        # Update command queue
+        autoscroll = False
+        if queue_text_scrollbar.get()[1] == 1:
+            autoscroll = True
+        queue_text.config(state=tk.NORMAL)
+        queue_text.insert(tk.END, f"{local_command_id:03d} ", "id")
+        queue_text.insert(tk.END, command_text + "\n", "text")
+        queue_text.config(state=tk.DISABLED)
+        if autoscroll:
+            queue_text.see(tk.END)
+        queue_cancel_button.config(state=tk.NORMAL)
+        local_command_id += 1
 
 
 # Function to remove a command from the command queue
-def dequeue_command(command_id: int):
-    # Find place in queue of the command being removed
+def dequeue_command(received_command_id: int):
+    global local_command_id, go_status_target
+    if (command_queue and received_command_id > command_queue[0]["id"]) or received_command_id > local_command_id:
+        print_outgoing_log(f"Warning: received command ID {received_command_id:03d} is greater than next local"
+                           f" command ID {(command_queue[0]['id'] if command_queue else local_command_id):03d}")
+
+    # Remove all commands from queue with an ID less or equal to acknowledgement
     line_no = 1
-    found = False
+    del_list = []
     with lock:
         for command in command_queue:
-            if command["id"] == command_id:
-                found = True
-                break
-            line_no += 1
-        if not found:
-            return
-        # Remove command from queue
-        print_outgoing_log(
-            f"Command {command['id']:03d} acknowledged: {command['text']}")
-        if command['radio'][0] == 'G':
-            global go_status_target
-            if go_status_target:
-                go_button.config(fg="white", bg="green", state=tk.NORMAL)
+            if command["id"] <= received_command_id:
+                if command["id"] == received_command_id:
+                    # Show success message for command being acknowledged
+                    print_outgoing_log(
+                        f"Command {command['id']:03d} acknowledged: {command['text']}")
+                    if command['radio'][0] == 'G':
+                        if go_status_target:
+                            go_button.config(
+                                fg="white", bg="green", state=tk.NORMAL)
+                        else:
+                            go_button.config(
+                                fg="white", bg="#B81D13", state=tk.NORMAL)
+                else:
+                    # Show error for command not being acknowledged
+                    print_outgoing_log(
+                        f"Command {command['id']:03d} ignored: {command['text']}")
+                    if command['radio'][0] == 'G':
+                        if go_status_target:
+                            go_button.config(
+                                fg="white", bg="#B81D13", state=tk.NORMAL)
+                        else:
+                            go_button.config(
+                                fg="white", bg="green", state=tk.NORMAL)
+                        go_status_target = not go_status_target
+
+                # Add to list of commands to remove from queue
+                del_list.append(command)
+                queue_text.config(state=tk.NORMAL)
+                queue_text.delete(f"{line_no}.0", f"{line_no + 1}.0")
+                queue_text.config(state=tk.DISABLED)
             else:
-                go_button.config(fg="white", bg="#B81D13", state=tk.NORMAL)
-        command_queue.remove(command)
+                line_no += 1
+
+        # Remove commands from queue
+        for command in del_list:
+            command_queue.remove(command)
+
+        # Disable cancel button if queue is empty
         if not command_queue:
             queue_cancel_button.config(state=tk.DISABLED)
-    queue_text.config(state=tk.NORMAL)
-    queue_text.delete(f"{line_no}.0", f"{line_no + 1}.0")
-    queue_text.config(state=tk.DISABLED)
+
+    if received_command_id > local_command_id:
+        local_command_id = received_command_id + 1
+        print_outgoing_log(
+            f"Updating next command ID to {local_command_id:03d}")
 
 
 # Function to cancel a command from the command queue
@@ -385,6 +423,7 @@ outgoing_log.tag_config("timestamp", foreground="gray")
 outgoing_log.tag_config("text", foreground="black")
 outgoing_log.tag_config("send", foreground="orange")
 outgoing_log.tag_config("ack", foreground="green")
+outgoing_log.tag_config("error", foreground="red")
 
 outgoing_log_scrollbar = ttk.Scrollbar(
     outgoing_log_frame, command=outgoing_log.yview)
