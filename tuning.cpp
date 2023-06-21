@@ -2,6 +2,8 @@
 #include <chrono>
 #include <list>
 #include <fstream>
+#include <sstream>
+#include <iomanip>
 
 #include "IMU/imu.h"
 #include "DShot/dshot.h"
@@ -17,7 +19,7 @@ int main()
 {
     // Turn off buzzer
     wiringPiSetup();
-	pinMode(21, OUTPUT);
+    pinMode(21, OUTPUT);
     digitalWrite(21, LOW);
 
 
@@ -51,56 +53,70 @@ int main()
     // Await altitude
 
     // Flight
+    group_startup(motors);
     auto start = chrono::high_resolution_clock::now();
     auto cur = chrono::high_resolution_clock::now();
     list<pair<float, motor_cmd_t>> cmd_log;
-    group_startup(motors);
-    while (chrono::duration_cast<chrono::seconds>(cur - start).count() < 30)
+
+    bool first_loop = true;
+    while (chrono::duration_cast<chrono::milliseconds>(cur - start).count() < 3000)
     {
         cur = chrono::high_resolution_clock::now();
-        // // Square Wave
-        // if (chrono::duration_cast<chrono::milliseconds>(cur - start).count() % 20000 <= 10000)
-        // {
-            setpoint.y = 180; // degrees
-        // }
-        // else
-        // {
-        //     setpoint.y = -160; // degrees
-        // }
-
-        // Sine Wave
-        // setpoint.x = 30 * sin(chrono::duration_cast<chrono::microseconds>(cur - start).count()/1000000.0);
-        // if (setpoint.x > 0)
-        // {
-        //     setpoint.x = 180 - setpoint.x;
-        // }
-        // else
-        // {
-        //     setpoint.x = -180 - setpoint.x;
-        // }
-
-        // Integral Wind-Up Test
-        // if (chrono::duration_cast<chrono::milliseconds>(cur - start).count() <= 50000)
-        // {
-        //     setpoint.x = 20; // degrees
-        // }
-        // else
-        // {
-        //     setpoint.x = -20; // degrees
-        // }
-
+        motor_cmd_t motor_cmd;
+        motor_cmd.motor_1 = 100;
+        motor_cmd.motor_2 = 100;
+        motor_cmd.motor_3 = 100;
+        motor_cmd.motor_4 = 100;
+        state.imu_data = imu_read_data();
+        busy10ns(500000);
+        send_motor_cmds(motor_cmd,motors);
+    }
+    start = chrono::high_resolution_clock::now();
+    int thrust = 300;
+    bool th = true;
+    while (chrono::duration_cast<chrono::milliseconds>(cur - start).count() < 12000)
+    {
+        cur = chrono::high_resolution_clock::now();
 
         state.imu_data = imu_read_data();
+        if (first_loop)
+        {
+            setpoint.x = state.imu_data.gps.lat;
+            setpoint.y = state.imu_data.gps.lon;
+            setpoint.z = state.imu_data.alt + 1.0;
+            setpoint.yaw = 90;
+            first_loop = false;
+        }
         motor_cmd_t motor_cmd = control.control_loop(setpoint, state);
         // cout << setpoint.x << " " << state.imu_data.heading.x << endl;
 
         int delay = 500000;
         busy10ns(delay); // 5 ms delay
+        motor_cmd.motor_1 += thrust;
+        motor_cmd.motor_2 += thrust;
+        motor_cmd.motor_3 += thrust;
+        motor_cmd.motor_4 += thrust;
         send_motor_cmds(motor_cmd, motors);
 
         data_log.push_back(make_pair(chrono::duration_cast<chrono::microseconds>(cur - start).count(), state));
-        cmd_log.push_back(make_pair(setpoint.y, motor_cmd));
-
+        cmd_log.push_back(make_pair(setpoint.z, motor_cmd));
+        // cout << chrono::duration_cast<chrono::milliseconds>(cur - start).count() << endl;
+        if (thrust <= 1200)
+        {
+            thrust++;
+            // if (thrust >= 600)
+            // {
+            //     th = false;
+            // }
+        }
+        else if (thrust > 1200)
+        {
+            thrust = 1200;
+            // if (thrust <= 0)
+            // {
+            //     break;
+            // }
+        }
         while (chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() < 9500);
     }
 
@@ -134,6 +150,8 @@ int main()
     auto it2 = cmd_log.begin();
     for (auto it1 = data_log.begin(); it1 != data_log.end(); it1++, it2++)
     {
+        stringstream ss;
+        ss << fixed << setprecision(6) << (*it1).second.imu_data.gps.lat << "," << (*it1).second.imu_data.gps.lon << ",";
         log_file << ((*it1).first) << ","
             << (*it1).second.imu_data.heading.x << ","
             << (*it1).second.imu_data.heading.y << ","
@@ -144,8 +162,7 @@ int main()
             << (*it1).second.imu_data.ang_v.x << ","
             << (*it1).second.imu_data.ang_v.y << ","
             << (*it1).second.imu_data.ang_v.z << ","
-            << (*it1).second.imu_data.gps.lat << ","
-            << (*it1).second.imu_data.gps.lon << ","
+            << ss.str() // GPS latitude and longitude, formatted to 6 decimal places
             << (*it1).second.imu_data.alt << ","
             << (*it1).second.ultra_alt << ","
             << (*it2).first << ","

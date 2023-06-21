@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <filesystem>
 #include <thread>
+#include <ctime>
+#include <iomanip>
+#include <sstream>
 
 #include "IMU/imu.h"
 #include "DShot/dshot.h"
@@ -19,16 +22,17 @@ void launch_status(vector<Dshot> &motors, state_t &state, chrono::_V2::system_cl
 void eject_status(vector<Dshot> &motors, state_t &state);
 void container_release(vector<Dshot> &motors, state_t &state, chrono::_V2::system_clock::time_point &motor_start);
 void deploy_status(vector<Dshot> &motors, state_t &state, chrono::_V2::system_clock::time_point &launch_time);
-void parachute_release(vector<Dshot> &motors, state_t &state);
+void parachute_release(vector<Dshot> &motors, state_t &state, chrono::_V2::system_clock::time_point &motor_start);
 void parachute_avoid(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint);
 void auto_status(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint);
 void descent_status(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint);
 void manual_status(vector<Dshot> &motors, state_t &state, controller &control, setpoint_t &setpoint);
-void ground_status(state_t &state, list<pair<long, state_t>> &data_log, list<pair<float, motor_cmd_t>> &cmd_log);
+void landed_status(state_t &state, list<pair<long, state_t>> &data_log, list<pair<float, motor_cmd_t>> &cmd_log);
 
 bool send_motor_cmds(motor_cmd_t &cmd, vector<Dshot> &motors);
 float axes_mag(axes_t &axes);
 void write_data(list<pair<long, state_t>> &data_log, list<pair<float, motor_cmd_t>> &cmd_log);
+bool detect_launch(pair<long, state_t> (&launch_detect_log)[1024], int index);
 
 using namespace std;
 
@@ -59,7 +63,7 @@ int main(int argc, char* argv[])
 
     // Turn off buzzer
     wiringPiSetup();
-	pinMode(21, OUTPUT);
+    pinMode(21, OUTPUT);
     digitalWrite(21, LOW);
 
     // Initialize all subsystems
@@ -91,15 +95,16 @@ int main(int argc, char* argv[])
     auto start = chrono::high_resolution_clock::now();
     auto cur = chrono::high_resolution_clock::now();
     auto launch_time = chrono::high_resolution_clock::now();
-    auto motor_start = chrono::high_resolution_clock::now();
+    auto container_motor_start = chrono::high_resolution_clock::now();
+    auto parachute_motor_start = chrono::high_resolution_clock::now();
     list<pair<float, motor_cmd_t>> cmd_log;
     motor_cmd_t motor_cmd = control.set_zero();
     // group_startup(motors);
 
     state.status = state_t::ARMED;
     bool camera = false;
-    bool motor_1 = false;
-    bool motor_2 = false;
+    bool container_motor = false;
+    bool parachute_motor = false;
 
     // TODO: BEEPS!
 
@@ -116,14 +121,12 @@ int main(int argc, char* argv[])
             state.imu_data.pressure = data_log.back().second.imu_data.pressure;
         }
 
-        
-
         switch (state.status)
         {
         case state_t::ARMED:
             armed_status(motors, state, launch_detect_log, launch_detect_log_index, start, launch_time);
-            break;            
-        
+            break;
+
         case state_t::LAUNCH:
             launch_status(motors, state, launch_time);
             break;
@@ -133,12 +136,12 @@ int main(int argc, char* argv[])
             break;
 
         case state_t::CONTAINER_RELEASE:
-            if (!motor_1)
+            if (!container_motor)
             {
-                motor_start = chrono::high_resolution_clock::now();
-                motor_1 = true;
+                container_motor_start = chrono::high_resolution_clock::now();
+                container_motor = true;
             }
-            container_release(motors, state, motor_start);
+            container_release(motors, state, container_motor_start);
             break;
 
         case state_t::DEPLOYED:
@@ -146,7 +149,12 @@ int main(int argc, char* argv[])
             break;
 
         case state_t::PARACHUTE_RELEASE:
-            parachute_release(motors, state);
+            if (!parachute_motor)
+            {
+                parachute_motor_start = chrono::high_resolution_clock::now();
+                parachute_motor = true;
+            }
+            parachute_release(motors, state, parachute_motor_start);
             break;
 
         case state_t::PARACHUTE_AVOIDANCE:
@@ -166,11 +174,8 @@ int main(int argc, char* argv[])
             break;
         }
 
-        if (state.status != state_t::ARMED)
-        {
-            data_log.push_back(make_pair(chrono::duration_cast<chrono::microseconds>(cur - start).count(), state));
-            cmd_log.push_back(make_pair(setpoint.y, motor_cmd));
-        }
+        data_log.push_back(make_pair(chrono::duration_cast<chrono::microseconds>(cur - start).count(), state));
+        cmd_log.push_back(make_pair(setpoint.y, motor_cmd));
 
         if (state.status != state_t::ARMED && !camera)
         {
@@ -179,15 +184,15 @@ int main(int argc, char* argv[])
 
             launch_time = chrono::high_resolution_clock::now();
 
-            camera = true;            
+            camera = true;
         }
 
         handle_xbee_command(state, setpoint);
 
-        while (chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() < 9500);
+        while (chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - cur).count() < 9500);
     }
 
-    ground_status(state, data_log, cmd_log);
+    landed_status(state, data_log, cmd_log);
 
     return 0;
 }
@@ -195,17 +200,8 @@ int main(int argc, char* argv[])
 void armed_status(vector<Dshot> &motors, state_t &state, pair<long, state_t> (&launch_detect_log)[1024], int &index, chrono::_V2::system_clock::time_point &start, chrono::_V2::system_clock::time_point &launch_time)
 {
     launch_detect_log[index & 1023] = make_pair(chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count(), state);
-    
-    float avg_accel = 0;
 
-    for (int i = index - 100; i < index; ++i)
-    {
-        avg_accel += axes_mag(launch_detect_log[i & 1023].second.imu_data.accel);
-    }
-
-    avg_accel /= 100;
-
-    if (avg_accel > 5 * 9.8) // 5 gs of acceleration
+    if (detect_launch(launch_detect_log, index))
     {
         state.status = state_t::LAUNCH;
     }
@@ -240,11 +236,11 @@ void container_release(vector<Dshot> &motors, state_t &state, chrono::_V2::syste
 {
     digitalWrite(6, HIGH);
 
-    if (chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - motor_start).count() > 1000) // run motors for one second
+    if (chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - motor_start).count() > 1500)
     {
         digitalWrite(6, LOW);
         state.status = state_t::DEPLOYED;
-    } 
+    }
 
     return;
 }
@@ -259,7 +255,7 @@ void deploy_status(vector<Dshot> &motors, state_t &state, chrono::_V2::system_cl
     return;
 }
 
-void parachute_release(vector<Dshot> &motors, state_t &state)
+void parachute_release(vector<Dshot> &motors, state_t &state, chrono::_V2::system_clock::time_point &motor_start)
 {
     // int motor_gpio = 5;
 
@@ -300,19 +296,99 @@ void manual_status(vector<Dshot> &motors, state_t &state, controller &control, s
     return;
 }
 
-void ground_status(state_t &state, list<pair<long, state_t>> &data_log, list<pair<float, motor_cmd_t>> &cmd_log)
+void landed_status(state_t &state, list<pair<long, state_t>> &data_log, list<pair<float, motor_cmd_t>> &cmd_log)
 {
     write_data(data_log, cmd_log);
 
     digitalWrite(21, HIGH); // buzzer scream!
 
+    // TODO: edit to shutdown after some amount of time
     while (true)
+    {
+        sleep(1);
+    }
 
     return;
 }
 
 
 // Miscellaneous functions
+
+bool detect_launch(pair<long, state_t> (&launch_detect_log)[1024], int index)
+{
+    float sorted_log[300];
+
+    // for (int i = 0; i < 300; ++i)
+    // {
+    //     sorted_log[i] = axes_mag(launch_detect_log[(index - (300 + i)) & 1023].second.imu_data.accel);
+    // }
+
+    // for (int i = 0; i < 300; ++i)
+    // {
+    //     for (int j = 0; j < 300; ++j)
+    //     {
+    //         if (sorted_log[j] > sorted_log[i + 1])
+    //         {
+    //             float temp = sorted_log[j];
+    //             sorted_log[j] = sorted_log[i + 1];
+    //             sorted_log[i + 1] = temp;
+    //         }
+    //     }
+    // }
+
+    // float avg_accel = 0;
+
+    // for (int i = 10; i < 290; ++i)
+    // {
+    //     avg_accel += sorted_log[i];
+    // }
+
+    // avg_accel /= 280;
+
+    // if (avg_accel > 5 * 9.8) // 5 gs of acceleration
+    // {
+    //     return true;
+    // }
+
+    float p_avg_accel = 0;
+
+    for (int i = 0; i < 300; ++i)
+    {
+        p_avg_accel += axes_mag(launch_detect_log[(index - (300 + i)) & 1023].second.imu_data.accel);
+    }
+
+    p_avg_accel /= 300;
+
+    float stdev = 0;
+
+    for (int i = 0; i < 300; ++i)
+    {
+        stdev += pow(axes_mag(launch_detect_log[(index - (300 + i)) & 1023].second.imu_data.accel) - p_avg_accel, 2.0);
+    }
+
+    stdev = sqrt(stdev / 299);
+
+    float avg_accel = 0;
+    int count;
+
+    for (int i = 0; i < 300; ++i)
+    {
+        if (axes_mag(launch_detect_log[(index - (300 + i)) & 1023].second.imu_data.accel) < 3 * stdev)
+        {
+            avg_accel += axes_mag(launch_detect_log[(index - (300 + i)) & 1023].second.imu_data.accel);
+            count++;
+        }
+    }
+
+    avg_accel /= count;
+
+    if (avg_accel > 5 * 9.8) // 5 gs of acceleration
+    {
+        return true;
+    }
+
+    return false;
+}
 
 bool send_motor_cmds(motor_cmd_t &cmd, vector<Dshot> &motors)
 {
@@ -325,13 +401,20 @@ bool send_motor_cmds(motor_cmd_t &cmd, vector<Dshot> &motors)
 
 float axes_mag(axes_t &axes)
 {
-    return sqrt(axes.x * axes.x + axes.y * axes.y + axes.z * axes.z); 
+    return sqrt(axes.x * axes.x + axes.y * axes.y + axes.z * axes.z);
 }
 
 void write_data(list<pair<long, state_t>> &data_log, list<pair<float, motor_cmd_t>> &cmd_log)
 {
+    time_t datetime = time(nullptr);
+    tm local_datetime = *localtime(&datetime);
+
+    ostringstream oss;
+    oss << put_time(&local_datetime, "%Y%m%d_%H-%M-%S.csv");
+    string filename = oss.str();
+
     ofstream log_file;
-    log_file.open("april_launch_log.csv");
+    log_file.open(filename);
 
     log_file << "timestamp,"
             << "roll,"
@@ -343,10 +426,14 @@ void write_data(list<pair<long, state_t>> &data_log, list<pair<float, motor_cmd_
             << "ang_vel_x,"
             << "ang_vel_y,"
             << "ang_vel_z,"
+            << "accel_x,"
+            << "accel_y,"
+            << "accel_z,"
             << "gps_lat,"
             << "gps_lon,"
             << "imu_alt,"
             << "ultrasonic_alt,"
+            << "pressure,"
             << "status,"
             << "command,"
             << "motor_1,"
@@ -367,10 +454,14 @@ void write_data(list<pair<long, state_t>> &data_log, list<pair<float, motor_cmd_
             << (*it1).second.imu_data.ang_v.x << ","
             << (*it1).second.imu_data.ang_v.y << ","
             << (*it1).second.imu_data.ang_v.z << ","
+            << (*it1).second.imu_data.accel.x << ","
+            << (*it1).second.imu_data.accel.y << ","
+            << (*it1).second.imu_data.accel.z << ","
             << (*it1).second.imu_data.gps.lat << ","
             << (*it1).second.imu_data.gps.lon << ","
             << (*it1).second.imu_data.alt << ","
             << (*it1).second.ultra_alt << ","
+            << (*it1).second.imu_data.pressure << ","
             << (*it1).second.status << ","
             << (*it2).first << ","
             << (*it2).second.motor_1 << ","

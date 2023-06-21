@@ -6,6 +6,9 @@
 #include <exception>
 #include <signal.h>
 #include <stdlib.h>
+#include <utility>
+#include <ctime>
+#include <iomanip>
 
 using namespace std;
 
@@ -22,7 +25,7 @@ int main()
 {
     // Turn off buzzer
     wiringPiSetup();
-	pinMode(21, OUTPUT);
+    pinMode(21, OUTPUT);
     digitalWrite(21, LOW);
 
     // Initialize all subsystems
@@ -35,27 +38,71 @@ int main()
 
     auto start = chrono::high_resolution_clock::now();
     auto cur = chrono::high_resolution_clock::now();
+    auto write = chrono::high_resolution_clock::now();
 
+    long index = 0;
     ofstream log_file;
-    log_file.open("plog.csv");
+    auto t = time(nullptr);
+    auto tm = *localtime(&t);
+    stringstream temp;
+    temp <<  put_time(&tm, "plog_%d-%m-%Y_%H-%M-%S.csv");
+    string file_name = temp.str();
+    log_file.open(file_name);
+
+    list<pair<long, float>> datavec;
+
+    bool first = true;
+    auto it2 = datavec.begin();
+    auto it = datavec.begin();
+
+    bool a = false;
 
     try
     {
-        while (chrono::duration_cast<chrono::minutes>(cur - start).count() < 15)
+        while (chrono::duration_cast<chrono::minutes>(cur - start).count() < 30)
         {
             cur = chrono::high_resolution_clock::now();
 
             state = imu_read_data();
 
-            int delay = 500000;
-            busy10ns(delay); // 5 ms delay
+            //int delay = 1000000;
+            //busy10ns(delay); // 10 ms delay
 
-            if (state.alt != -1)
+        datavec.push_back(make_pair(chrono::duration_cast<chrono::microseconds>(cur - start).count(), state.pressure));
+
+        if (first)
+        {
+            it2 = datavec.begin();
+            it = datavec.begin();
+            first = false;
+        }
+        else{
+            it = it2;
+        }
+
+          //  if (state.alt != 0)
+          //  {
+          //      log_file << chrono::duration_cast<chrono::microseconds>(cur - start).count() << "," << state.pressure << endl;
+          //  }
+    a = false;
+
+            if (chrono::duration_cast<chrono::seconds>(chrono::high_resolution_clock::now() - write).count() >= 2*60)
             {
-                log_file << chrono::duration_cast<chrono::microseconds>(cur - start).count() << "," << state.alt << endl;
+                write = chrono::high_resolution_clock::now();
+                digitalWrite(21, HIGH);
+                sleep(1);
+        for (it; it != datavec.end(); it++)
+                {
+                    log_file << (*it).first << "," << (*it).second << endl;
+                    if (a)
+                    {
+                        it2++;
+                    }
+                    a = true;
+                }
+                digitalWrite(21, LOW);
             }
-            
-            while (chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() < 9500);
+            while (chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - cur).count() < 9500);
         }
     }
     catch (InterruptException& e)
@@ -64,8 +111,8 @@ int main()
         log_file.close();
         return 1;
     }
-    
-    
+
+
 
     log_file.close();
 

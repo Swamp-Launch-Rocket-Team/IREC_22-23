@@ -61,23 +61,3 @@ SD slot is oriented at the top.
 [libcamera](https://www.raspberrypi.com/documentation/computers/camera_software.html)
 
 [Ultimate GPS on RPi](https://learn.adafruit.com/adafruit-ultimate-gps-on-the-raspberry-pi/introduction)
-
-## TODO
-- Write camera code
-  - python script to take pic every ~5 seconds and write to file?
-- Test controller loop timing
-
-- Tune controllers with prototype
-- Write autonomous navigation code
-- Write main
-  - Detect launch (use data from Feb. launch?)
-  - Calibrate imu from pre-launch data
-  - Init required sensors/processes
-  - Release checklist
-    - IMU?
-    - barometer
-    - Radio connection
-    - Dshot init?
-  - Activate DC motors to release drone from container/parachute
-  - XBee communication
-  - Slow descent with ultrasonic data
