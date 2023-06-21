@@ -7,6 +7,7 @@
 struct state_t
 {
     imu_data_t imu_data;
+    float corrected_yaw = 0;
 
     float ultra_alt = -1;
 

@@ -32,6 +32,11 @@ class controller
         PID roll;
         PID pitch;
         PID yaw;
+        float d_gps[100][2];
+        int count = 0;
+        chrono::high_resolution_clock::time_point prev_time;
+        float prev_lat = -1;
+        float prev_lon = -1;
 
     public:
         controller();

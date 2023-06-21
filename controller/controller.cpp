@@ -1,6 +1,6 @@
 #include "controller.h"
 
-#define PI 3.14159265358979323846
+#define NAV_ANGLE 10
 
 using namespace std;
 
@@ -18,6 +18,14 @@ controller::controller(string filename)
     yaw = PID(cfg_data.z.kp, cfg_data.z.ki, cfg_data.z.kd);
     x_pos = PID(cfg_data.x_pos.kp, cfg_data.x_pos.ki, cfg_data.x_pos.kd);
     y_pos = PID(cfg_data.y_pos.kp, cfg_data.y_pos.ki, cfg_data.y_pos.kd);
+
+    for (int i = 0; i < 100; ++i)
+    {
+        for (int j = 0; j < 2; ++j)
+        {
+            d_gps[i][j] = 0;
+        }
+    }
 }
 
 // Calculate motor throttles
@@ -30,17 +38,83 @@ motor_cmd_t controller::control_loop(setpoint_t &setpoint, state_t &state)
 {
     motor_cmd_t motor_cmd;
 
-    // Make sure the signs on this entire function are correct
+    chrono::high_resolution_clock::time_point cur_time = chrono::high_resolution_clock::now();
+    float dt = chrono::duration_cast<chrono::microseconds>(cur_time - prev_time).count();
+
+    if (prev_lat == -1)
+    {
+        prev_lat = state.imu_data.gps.lat;
+    }
+    if (prev_lon == -1)
+    {
+        prev_lon = state.imu_data.gps.lon;
+    }
+
+    // Derivative of current gps coordinates
+    float d_lat_cur = (state.imu_data.gps.lat - prev_lat) / dt;
+    float d_lon_cur = (state.imu_data.gps.lon - prev_lon) / dt;
+
+    // Place current gps derivative in derivative array
+    d_gps[(count + 1) % 100][0] = d_lat_cur;
+    d_gps[(count + 1) % 100][1] = d_lon_cur;
+
+    float velocity[2] = {0, 0};
+
+    // Find moving avg of velocity
+    for (int i = 0; i < 100; ++i)
+    {
+        velocity[0] += d_gps[i][0];
+        velocity[1] += d_gps[i][1];
+    }
+
+    // Normalize velocity
+    velocity[0] /= 100;
+    velocity[1] /= 100;
+
+    // float mag_v = sqrt(pow(velocity[0],2.0) + pow(velocity[1],2.0));
+    // cout << setpoint.x << " | " << setpoint.y << " | ";
+    // cout << state.imu_data.gps.lat << " | " << state.imu_data.gps.lon << " | ";
+    // cout << velocity[0] / mag_v << " | " << velocity[1] / mag_v << " | " << mag_v * 111139 << " | ";
 
     float x_error = setpoint.x - state.imu_data.gps.lat;
     float y_error = setpoint.y - state.imu_data.gps.lon;
 
-    // float mag_error = sqrt(pow(x_error,2.0) + pow(y_error,2.0));
+    // float mag_g = sqrt(pow(x_error,2.0) + pow(y_error,2.0));
 
-    // float theta = atan2(y_error,x_error);
+    // cout << x_error / mag_g << " | " << y_error / mag_g << " | " << mag_g * 111139 << endl;
 
-    float rel_x = x_error * cos(state.imu_data.heading.z * PI / 180) - y_error * sin(state.imu_data.heading.z * PI / 180); // Look into MATLAB code to figure this out
-    float rel_y = - x_error * sin(state.imu_data.heading.z * PI / 180) - y_error * cos(state.imu_data.heading.z * PI / 180); // Determined by dark magic!
+    // Calculate signed correction angle using arctan(cross product / dot product)
+    float yaw_correction_angle = atan2(x_error * velocity[1] - y_error * velocity[0], velocity[0] * x_error + velocity[1] * y_error) * 180 / M_PI;
+
+    // state.corrected_yaw = state.imu_data.heading.z - yaw_correction_angle;
+
+    while (state.corrected_yaw > 180)
+    {
+        state.corrected_yaw -= 360;
+    }
+    while (state.corrected_yaw < -180)
+    {
+        state.corrected_yaw += 360;
+    }
+
+    // float target_rad = 1;
+    // float m2gps = 1 / 111139;
+
+    // if (x_error < target_rad * m2gps && x_error > -target_rad * m2gps)
+    // {
+    //     x_error = 0;
+    // }
+    // if (y_error < target_rad * m2gps && x_error > -target_rad * m2gps)
+    // {
+    //     y_error = 0;
+    // }
+
+    // float rel_x = x_error * cos(state.corrected_yaw * M_PI / 180) - y_error * sin(state.corrected_yaw * M_PI / 180); // Look into MATLAB code to figure this out
+    // float rel_y = - x_error * sin(state.corrected_yaw * M_PI / 180) - y_error * cos(state.corrected_yaw * M_PI / 180); // Determined by dark magic!
+
+    float rel_x = x_error * cos(state.imu_data.heading.z * M_PI / 180) - y_error * sin(state.imu_data.heading.z * M_PI / 180); // Look into MATLAB code to figure this out
+    float rel_y = - x_error * sin(state.imu_data.heading.z * M_PI / 180) - y_error * cos(state.imu_data.heading.z * M_PI / 180); // Determined by dark magic!
+
 
     // cout << "rel_x: " << rel_x * 100000<< endl;
     // cout << "rel_y: " << rel_y * 100000<< endl;
@@ -48,21 +122,21 @@ motor_cmd_t controller::control_loop(setpoint_t &setpoint, state_t &state)
     float roll_setpoint = y_pos.compute_PID(- rel_y); // should the setpoints be different? maybe not but also possibly
     float pitch_setpoint = x_pos.compute_PID(rel_x);
 
-    if (roll_setpoint > 10)
+    if (roll_setpoint > NAV_ANGLE)
     {
-        roll_setpoint = 10;
+        roll_setpoint = NAV_ANGLE;
     }
-    else if (roll_setpoint < -10)
+    else if (roll_setpoint < -NAV_ANGLE)
     {
-        roll_setpoint = -10;
+        roll_setpoint = -NAV_ANGLE;
     }
-    if (pitch_setpoint > 10)
+    if (pitch_setpoint > NAV_ANGLE)
     {
-        pitch_setpoint = 10;
+        pitch_setpoint = NAV_ANGLE;
     }
-    else if (pitch_setpoint < -10)
+    else if (pitch_setpoint < -NAV_ANGLE)
     {
-        pitch_setpoint = -10;
+        pitch_setpoint = -NAV_ANGLE;
     }
 
     // cout << roll_setpoint << " | " << pitch_setpoint << " | " << state.imu_data.heading.z << endl;
@@ -83,32 +157,33 @@ motor_cmd_t controller::control_loop(setpoint_t &setpoint, state_t &state)
     float roll_error = roll_setpoint - state.imu_data.heading.x;
     float pitch_error = pitch_setpoint - state.imu_data.heading.y;
     float yaw_error = setpoint.yaw - state.imu_data.heading.z;
+    // float yaw_error = setpoint.yaw - state.corrected_yaw;
 
-    if (roll_error > 180)
+    while (roll_error > 180)
     {
-        roll_error = -(360 - roll_error);
+        roll_error -= 360;
     }
-    else if (roll_error < -180)
+    while (roll_error < -180)
     {
-        roll_error = 360 + roll_error;
-    }
-
-    if (pitch_error > 180)
-    {
-        pitch_error = -(360 - pitch_error);
-    }
-    else if (pitch_error < -180)
-    {
-        pitch_error = 360 + pitch_error;
+        roll_error += 360;
     }
 
-    if (yaw_error > 180)
+    while (pitch_error > 180)
     {
-        yaw_error = -(360 - yaw_error);
+        pitch_error -= 360;
     }
-    else if (yaw_error < -180)
+    while (pitch_error < -180)
     {
-        yaw_error = 360 + yaw_error;
+        pitch_error += 360;
+    }
+
+    while (yaw_error > 180)
+    {
+        yaw_error -= 360;
+    }
+    while (yaw_error < -180)
+    {
+        yaw_error += 360;
     }
 
     float roll_cmd = roll.compute_PID(roll_error);
@@ -164,6 +239,11 @@ motor_cmd_t controller::control_loop(setpoint_t &setpoint, state_t &state)
     // motor_cmd.motor_2 += 100;
     // motor_cmd.motor_3 += 100;
     // motor_cmd.motor_4 += 100;
+
+    count++;
+    prev_time = cur_time;
+    prev_lat = state.imu_data.gps.lat;
+    prev_lon = state.imu_data.gps.lon;
 
     return motor_cmd;
 }
